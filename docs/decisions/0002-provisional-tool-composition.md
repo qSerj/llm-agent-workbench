@@ -45,7 +45,11 @@ without repeating inference. It also exposed two domain-level issues: a perfect
 grader score masked an unsupported claim, and `git.diff` omitted an untracked
 output that remained available in the workspace artifact.
 
-Before treating the composition as durable, test failed/partial executions,
-OpenTelemetry export, actual human review, and large or non-text artifacts. If
-artifact-first execution or claim-level evidence repeatedly fights the selected
-tools, document that concrete gap before creating a project-owned model.
+Follow-up experiments successfully imported a partial execution, exported the
+legacy trace as real OTLP/HTTP protobuf, and stored and evaluated binary audio
+artifacts produced by ordinary programs. See the
+[composition results](../research/composition-results-2026-08-12.md) and
+[ADR 0003](0003-portable-execution-envelope.md). Actual human review remains
+open. If artifact-first execution or claim-level evidence repeatedly fights
+the selected tools, document that concrete gap before expanding the small
+project-owned envelope.

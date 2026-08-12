@@ -91,6 +91,12 @@ Select one canonical writer and one evaluation/execution path. Build only the
 small adapters needed to run the two scenarios reproducibly. Export execution
 telemetry using OpenTelemetry/OpenInference rather than a private span format.
 
+The second research slice has validated partial-failure import, real OTLP/HTTP
+protobuf export, and binary audio artifacts evaluated outside an LLM workflow.
+Actual human review is the remaining gate. See the
+[composition results](docs/research/composition-results-2026-08-12.md) and the
+[portable-envelope decision](docs/decisions/0003-portable-execution-envelope.md).
+
 ### 3. Economical pipelines
 
 Compare single-solver, solve-review-fix, independent-solvers-plus-judge, and

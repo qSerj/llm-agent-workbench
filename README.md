@@ -103,8 +103,10 @@ composition experiment covering partial failures, portable telemetry, human
 review, and non-text artifacts before any prototype refactor.
 
 See [VISION.md](VISION.md), the [bake-off protocol](docs/research/bakeoff-protocol.md),
+the [current research state](docs/CURRENT_STATE.md),
 the [tool landscape](docs/research/tool-landscape.md), the
 [legacy OpenCode import](docs/research/legacy-opencode-results-2026-08-12.md),
+the [minimal composition results](docs/research/composition-results-2026-08-12.md),
 and the [multi-agent orchestration notes](docs/orchestration.md).
 
 ## Contributing and license

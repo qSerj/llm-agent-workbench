@@ -11,7 +11,7 @@ promises that the latest release will always behave identically.
 | Inspect AI | 0.3.258 | MIT | Yes; Python | Agent evaluation harness, epochs, limits, sandboxes, scoring | Hands-on |
 | Promptfoo | 0.121.15 | MIT | Yes; Node 24 used here | Declarative prompt/provider/test matrices and CI | Hands-on |
 | Opik | 2.0.49 | Apache-2.0 | Yes; Docker Compose | LLM trace/evaluation backend and UI | Operational review |
-| OpenTelemetry + OpenInference | evolving | Apache-2.0 | Yes | Portable trace conventions and transport | Standards review |
+| OpenTelemetry + OpenInference | OTel 1.44.0; conventions evolving | Apache-2.0 | Yes | Portable trace conventions and transport | Hands-on export |
 | CodeCarbon | 3.2.9 | MIT | Yes; Linux is primary | Local energy/emissions estimate | Second pass |
 
 `Hands-on` means the domain-neutral scenario in
@@ -86,6 +86,13 @@ or epistemic evidence. They should define export vocabulary for LLM, agent,
 tool, evaluator, and workflow spans. They should not dictate how task cases,
 candidate versions, human rubrics, or output artifact comparisons are modeled.
 
+Observed locally: the official OpenTelemetry OTLP/HTTP exporter sent a
+reconstructed OpenCode execution as protobuf, which decoded into one trace with
+one root, 12 model-step, and 11 tool spans. GenAI and OpenInference attributes
+coexist cleanly, while project-only resource and evaluation observations remain
+namespaced. OTLP is therefore a viable export projection, not a replacement
+for the raw executor event stream.
+
 CodeCarbon can read Linux RAPL CPU counters and NVIDIA NVML data when the host
 exposes them; otherwise it estimates from hardware/TDP and load. Its result
 must therefore carry a measurement-method label. On this host the RTX 4070 Ti
@@ -121,5 +128,8 @@ without buying a subscription.
   and [security model](https://github.com/promptfoo/promptfoo/security)
 - [Opik local deployment](https://www.comet.com/docs/opik/self-host/local_deployment/)
   and [repository](https://github.com/comet-ml/opik)
-- [OpenInference repository](https://github.com/Arize-ai/openinference)
+- [OpenTelemetry GenAI conventions](https://github.com/open-telemetry/semantic-conventions-genai),
+  [agent spans](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md),
+  and the [OpenInference specification](https://arize-ai.github.io/openinference/spec/)
+- [MLflow feedback collection](https://mlflow.org/docs/latest/genai/assessments/feedback/)
 - [CodeCarbon methodology](https://mlco2.github.io/codecarbon/methodology.html)

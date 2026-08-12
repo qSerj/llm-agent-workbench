@@ -62,6 +62,8 @@ Inspect remains the natural harness for candidates built with Inspect, but an
 existing OpenCode or arbitrary executable need not be forced through it. A
 small adapter can import the external execution directly.
 
-Remaining tests are failed/partial execution import, OpenTelemetry export,
-actual human review, and large or non-text artifacts. No project-owned storage,
-trace viewer, scorer framework, or workflow engine is justified yet.
+Follow-up tests covered failed/partial execution import, OpenTelemetry export,
+and binary audio artifacts. Actual human review remains open. See the
+[minimal composition results](composition-results-2026-08-12.md). No
+project-owned storage, trace viewer, scorer framework, or workflow engine is
+justified.
