@@ -1,46 +1,119 @@
 # Vision
 
-LLM Agent Workbench is intended to become a small, local-first laboratory for
-measuring and designing economical agent systems. It starts from a practical
-benchmark, not from a general-purpose agent framework.
+LLM Agent Workbench is a local-first research laboratory for comparing complete
+ways of solving a task. A candidate can be one model, a coding agent, a normal
+program, a multi-agent pipeline, a local/cloud hybrid, or a human-assisted
+process. The workbench compares outcomes, evidence, money, time, tokens, and
+local resources without assuming that every execution is an LLM chat.
 
-## Core question
+The current `prototype-r4.2` is a useful OpenCode benchmark over a synthetic C#
+repository. It is the historical starting point, not the product boundary.
 
-How should intelligence, context, verification, and tools be distributed so
-that a workflow reaches the required quality with the least practical cost,
-latency, token use, and local compute?
+## Research Question
 
-The workbench should make those trade-offs observable rather than anecdotal.
-One run must preserve enough evidence to explain not only whether it succeeded,
-but how it spent its budget and where it failed.
+How should intelligence, context, verification, tools, and local computation be
+distributed so that a workflow reaches the required quality with the least
+practical cost and risk?
 
-## Product direction
+This includes model routing, context routing, decomposition, parallelism,
+verification, caching, and escalation to a stronger model or a person. A tool
+call has no fixed token price: the relevant cost is the inference and context
+that follow it, plus every retry and downstream stage.
 
-1. **Results core and CLI.** Define a stable run model; discover existing
-   result directories; classify complete, failed, and partial runs; expose
-   `list`, `show`, `compare`, and guarded `delete` operations.
-2. **Thin local UI.** Browse runs, filter by model/provider/task/status, compare
-   metrics, and inspect an event timeline without hiding raw artifacts.
-3. **Pipelines.** Add reproducible solve-review-fix, independent-solvers-plus-
-   judge, and planner-workers-verifier workflows. Attribute time, tokens, cost,
-   tools, and failures to every stage and to the pipeline as a whole.
-4. **Model and context routing.** Use expensive models only for decisions that
-   require them; provide workers with narrow, evidence-based context instead of
-   repeatedly sending an entire repository or corpus.
-5. **Domain-neutral experiments.** Describe work as tasks, input artifacts,
-   allowed tools, expected outputs, and evaluation so the same machinery can
-   support code, documents, research, reconciliation, and other domains.
+## Experiment Shape
 
-## Design principles
+The working vocabulary is deliberately conceptual until the tooling bake-off
+shows which objects must be owned by this project:
 
-- Raw traces and source evidence remain authoritative; summaries are indexes.
-- Unknown measurements remain unknown. Never invent provider prices or energy
-  readings.
-- Comparisons include the whole workflow, including planners, retries,
-  reviewers, judges, and failed attempts.
-- Local and cloud execution are first-class, including explicit data-boundary
-  choices for private inputs.
-- Storage and orchestration APIs precede UI complexity.
+```text
+Experiment
+  task intent and evaluation policy
+  cases with versioned input artifacts
+  candidate workflow versions
+  repetitions
+  executions with outputs and resource observations
+  deterministic, model-based, and human evaluations
+```
 
-The current `prototype-r4.2` implements only the initial single-agent benchmark
-and telemetry collection. It is preserved as the historical starting point.
+Artifacts may be text, source trees, tables, images, audio, video, or generated
+files. Evaluation may inspect an answer, an output artifact, the execution
+trajectory, external tests, source support, or human judgement. Unsupported
+modalities must remain opaque artifacts rather than being forced into strings.
+
+## Evidence and Provenance
+
+The project distinguishes two questions:
+
+1. **Execution provenance:** which activity, agent, tool, model, and source
+   artifact produced an output. OpenTelemetry/OpenInference and established
+   provenance standards should cover this where possible.
+2. **Epistemic evidence:** which source supports or contradicts a particular
+   claim. This is a quality property, not merely another trace span.
+
+Raw traces and source artifacts remain authoritative. Summaries and scores are
+indexes; a perfect deterministic score must not erase an unsupported claim.
+
+## Reuse Before Build
+
+This project does not aim to replace MLflow, Inspect AI, Promptfoo, Opik,
+OpenTelemetry, or mature workflow engines. In particular, it should not grow
+its own generic trace store/viewer, prompt manager, LLM cost dashboard, scorer
+framework, human annotation application, or orchestration engine unless a
+repeated measured gap requires one.
+
+Foundation dependencies must be permissive open source, free to run locally on
+Linux, usable without a commercial database or account, and exportable.
+Open-core and source-available tools can be optional integrations. Paid model
+inference is valid experimental input; mandatory paid infrastructure is not.
+
+The likely result is a small composition layer: reproducible manifests,
+adapters for arbitrary executors and artifacts, and portable correlation IDs
+across selected tools. It may not be a standalone platform at all.
+
+## Development Path
+
+### 0. Preserve the baseline
+
+Keep `prototype-r4.2` runnable and its limitations explicit. Do not refactor it
+while the target architecture is still under investigation.
+
+### 1. Tooling bake-off (current)
+
+Run a legacy coding case and a domain-neutral evidence-report case through
+MLflow, Inspect AI, Promptfoo, and an operational review of self-hosted Opik.
+Measure installation weight, Linux ergonomics, data egress, artifacts, repeats,
+failure handling, evaluation, feedback, telemetry, and export. See
+[the protocol](docs/research/bakeoff-protocol.md).
+
+### 2. Minimal composition experiment
+
+Select one canonical writer and one evaluation/execution path. Build only the
+small adapters needed to run the two scenarios reproducibly. Export execution
+telemetry using OpenTelemetry/OpenInference rather than a private span format.
+
+### 3. Economical pipelines
+
+Compare single-solver, solve-review-fix, independent-solvers-plus-judge, and
+planner-workers-verifier strategies. Attribute every planner, worker, reviewer,
+retry, tool, and failure to the whole workflow.
+
+### 4. Context and model routing
+
+Test whether indexes, verified summaries, targeted excerpts, local workers,
+and confidence-based escalation preserve quality while reducing context and
+cloud cost.
+
+### 5. Broader modalities and domains
+
+Add real image, audio, video, document, and structured-data cases only after
+artifact transport and evaluation boundaries work for both existing scenarios.
+Each domain earns its own ground truth, risks, and human-review policy.
+
+## Measurement Rules
+
+- Unknown stays unknown; estimates are labelled with their method and inputs.
+- Compare the whole workflow, including failed and abandoned attempts.
+- Record provider/model versions and the machine profile with every execution.
+- Hardware capabilities affect measurements, not whether an experiment is
+  structurally valid.
+- Keep raw data local by default and make every external data boundary explicit.

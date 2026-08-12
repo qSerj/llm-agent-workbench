@@ -81,9 +81,11 @@ runner сохраняет наблюдаемые step-метрики, а не п
 ## Куда развивается проект
 
 Тег `prototype-r4.2` — историческая исходная точка, не стабильный релиз.
-Ближайший этап: ядро результатов и CLI для просмотра, сравнения и безопасного
-удаления запусков. Затем — тонкая локальная оболочка, multi-agent pipelines,
-маршрутизация моделей и контекста.
+Ближайший этап — практическое сравнение готовых open-source систем для
+экспериментов, tracing и evaluation. Прототип не рефакторируется, пока эта
+проверка не покажет, какой небольшой интеграционный слой действительно нужен.
 
-См. [VISION.md](VISION.md) и [заметки об orchestration](docs/orchestration.md).
+См. [VISION.md](VISION.md), [протокол bake-off](docs/research/bakeoff-protocol.md),
+[обзор инструментов](docs/research/tool-landscape.md) и
+[заметки об orchestration](docs/orchestration.md).
 Правила разработки описаны в [AGENTS.md](AGENTS.md). Лицензия — [MIT](LICENSE).

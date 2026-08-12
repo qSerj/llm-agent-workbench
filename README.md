@@ -97,11 +97,13 @@ estimate from user-supplied average power, not a hardware measurement. Read
 ## Project status
 
 `prototype-r4.2` is a historical baseline, not a stable release. The next
-milestone is a results core and CLI for listing, inspecting, comparing, and
-safely deleting runs. Multi-agent pipelines, model routing, context routing,
-and a thin local UI follow after the result model is stable.
+milestone is a research bake-off of existing open-source experiment, tracing,
+and evaluation tools. The prototype will not be refactored until that work
+shows which small integration layer, if any, this project needs.
 
-See [VISION.md](VISION.md) and [multi-agent orchestration notes](docs/orchestration.md).
+See [VISION.md](VISION.md), the [bake-off protocol](docs/research/bakeoff-protocol.md),
+the [tool landscape](docs/research/tool-landscape.md), and the
+[multi-agent orchestration notes](docs/orchestration.md).
 
 ## Contributing and license
 
