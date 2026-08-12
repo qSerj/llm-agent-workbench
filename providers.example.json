@@ -1,0 +1,26 @@
+{
+  "_comment": "Examples only; do not store real secrets here.",
+  "lmstudio": {
+    "provider": "lmstudio",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "notes": "Runner loads/unloads the model with lms."
+  },
+  "openrouter": {
+    "provider": "openrouter",
+    "notes": "Use OpenCode /connect -> OpenRouter once; pass OpenRouter model ID to --model."
+  },
+  "gpt2giga_local_proxy": {
+    "provider": "compatible",
+    "provider_id": "giga",
+    "base_url": "http://127.0.0.1:8090/v1",
+    "api_key_env": null,
+    "notes": "gpt2giga defaults to http://localhost:8090; use /v1 for the OpenAI-compatible endpoint. Set the actual model ID and client API key configuration from your installation."
+  },
+  "generic_openai_compatible": {
+    "provider": "compatible",
+    "provider_id": "myprovider",
+    "base_url": "https://example.invalid/v1",
+    "api_key_env": "MYPROVIDER_API_KEY",
+    "notes": "The key itself stays in the environment and is never written to opencode.json."
+  }
+}
