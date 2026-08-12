@@ -77,7 +77,7 @@ across selected tools. It may not be a standalone platform at all.
 Keep `prototype-r4.2` runnable and its limitations explicit. Do not refactor it
 while the target architecture is still under investigation.
 
-### 1. Tooling bake-off (current)
+### 1. Tooling bake-off (completed first pass)
 
 Run a legacy coding case and a domain-neutral evidence-report case through
 MLflow, Inspect AI, Promptfoo, and an operational review of self-hosted Opik.
@@ -85,7 +85,7 @@ Measure installation weight, Linux ergonomics, data egress, artifacts, repeats,
 failure handling, evaluation, feedback, telemetry, and export. See
 [the protocol](docs/research/bakeoff-protocol.md).
 
-### 2. Minimal composition experiment
+### 2. Minimal composition experiment (current)
 
 Select one canonical writer and one evaluation/execution path. Build only the
 small adapters needed to run the two scenarios reproducibly. Export execution

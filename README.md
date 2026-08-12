@@ -96,14 +96,16 @@ estimate from user-supplied average power, not a hardware measurement. Read
 
 ## Project status
 
-`prototype-r4.2` is a historical baseline, not a stable release. The next
-milestone is a research bake-off of existing open-source experiment, tracing,
-and evaluation tools. The prototype will not be refactored until that work
-shows which small integration layer, if any, this project needs.
+`prototype-r4.2` is a historical baseline, not a stable release. The first
+tooling bake-off supports MLflow as the canonical experiment record and Inspect
+as an agent harness where it naturally fits. The current milestone is a minimal
+composition experiment covering partial failures, portable telemetry, human
+review, and non-text artifacts before any prototype refactor.
 
 See [VISION.md](VISION.md), the [bake-off protocol](docs/research/bakeoff-protocol.md),
-the [tool landscape](docs/research/tool-landscape.md), and the
-[multi-agent orchestration notes](docs/orchestration.md).
+the [tool landscape](docs/research/tool-landscape.md), the
+[legacy OpenCode import](docs/research/legacy-opencode-results-2026-08-12.md),
+and the [multi-agent orchestration notes](docs/orchestration.md).
 
 ## Contributing and license
 

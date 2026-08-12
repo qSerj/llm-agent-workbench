@@ -1,21 +1,26 @@
-# ADR 0002: Provisional Tool Composition
+# ADR 0002: Initial Tool Composition
 
-Status: proposed after the first domain-neutral bake-off, 2026-08-12.
+Status: accepted for the minimal composition experiment, 2026-08-12. This is
+not a final platform architecture.
 
 ## Context
 
-The first hands-on scenario compared two local candidate strategies over two
-evidence-report cases and two repetitions. MLflow, Inspect AI, and Promptfoo all
-represented the matrix, but each emphasized a different boundary. Opik's exact
-Compose profile was also inspected without pulling or starting the full stack.
+The domain-neutral scenario compared two local candidate strategies over two
+evidence-report cases and two repetitions. A second scenario ran the historical
+OpenCode benchmark through LM Studio/GPT-OSS and imported its complete external
+execution into MLflow without changing the runner. MLflow, Inspect AI, and
+Promptfoo represented the experiment matrix, but each emphasized a different
+boundary. Opik's exact Compose profile was inspected without pulling or
+starting the full stack.
 
-## Provisional Direction
+## Decision
 
-- Evaluate **MLflow** as the canonical experiment, artifact, trace, assessment,
-  and system-metric record. Write once to MLflow, then export; do not dual-write
-  the same canonical data to several products.
-- Evaluate **Inspect AI** as the primary harness when candidates are agents or
-  multi-step solvers and require epochs, limits, sandboxing, or rich transcripts.
+- Use **MLflow** as the canonical experiment, artifact, trace, assessment, and
+  system-metric record for the next experiment. Write once to MLflow, then
+  export; do not dual-write the same canonical data to several products.
+- Use **Inspect AI** when a candidate is naturally expressed as an Inspect task
+  or requires its epochs, limits, sandboxing, or rich transcripts. External
+  candidates such as OpenCode remain black boxes and import directly to MLflow.
 - Use **Promptfoo** only where its prompt/provider/test matrix and CI assertions
   are the natural fit. Do not make its text-result cell the universal artifact
   abstraction.
@@ -31,18 +36,16 @@ Do not select Prefect, Dagster, Hamilton, or another workflow runtime yet. The
 simple Python and Inspect execution paths must first demonstrate a scheduling,
 recovery, or lineage gap that warrants one.
 
-## Validation Required
+## Evidence and Remaining Risks
 
-This proposal is not accepted until the existing OpenCode benchmark is imported
-and one real provider-backed run is executed. That second scenario must test:
+The legacy adapter preserved raw OpenCode JSONL, workspace, grader output,
+metrics, and stable task/case/candidate identities. It correlated the external
+run with an MLflow trace using source timestamps and added a new assessment
+without repeating inference. It also exposed two domain-level issues: a perfect
+grader score masked an unsupported claim, and `git.diff` omitted an untracked
+output that remained available in the workspace artifact.
 
-- large directory artifacts and failed/partial executions;
-- preservation of raw OpenCode JSONL, workspace, diff, and grader output;
-- candidate and task version identity independent of MLflow naming;
-- correlation between Inspect/OpenCode events and MLflow/OTel traces;
-- re-evaluation without repeating inference;
-- structured human feedback and evidence links.
-
-If the legacy scenario needs only a small adapter, accept this composition. If
+Before treating the composition as durable, test failed/partial executions,
+OpenTelemetry export, actual human review, and large or non-text artifacts. If
 artifact-first execution or claim-level evidence repeatedly fights the selected
 tools, document that concrete gap before creating a project-owned model.

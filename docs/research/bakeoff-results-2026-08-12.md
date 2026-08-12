@@ -75,17 +75,23 @@ This remains a legitimate Apache-2.0 optional observability backend. A full pull
 and startup was deferred because the lighter candidates already covered the
 current scenario and Opik had not yet demonstrated a missing capability.
 
-## Baseline Scenario Status
+## Legacy Scenario
 
-The cloned repository contained no `agent_runs/`, OpenCode was not installed in
-`PATH`, LM Studio's server was stopped, and no provider key was present in the
-environment. Therefore no provider-backed legacy run was fabricated. Import of
-a real `run_summary.json`, JSONL trace, workspace, diff, and grader output is the
-next decision gate.
+After LM Studio was started, OpenCode `1.18.16` was installed as a user-local
+standalone CLI and GPT-OSS 20B was loaded with a 32,768-token context. Task 1
+completed in 14.46 seconds and scored 16/16, but source review found an invented
+usage example that the deterministic grader missed.
+
+The complete run was imported into MLflow without changing the runner. Raw
+JSONL, workspace, grading, metrics, and summaries remained available; an
+external-execution trace retained source timestamps and accepted an additional
+source-grounded assessment without repeating inference. See the
+[legacy import report](legacy-opencode-results-2026-08-12.md).
 
 ## Outcome
 
-The first slice supports a provisional MLflow + Inspect composition and a
-specialized Promptfoo adapter. It does not yet justify project-owned storage,
-evaluation, UI, or orchestration frameworks. See
+The two scenarios support MLflow as the canonical record, Inspect as an agent
+harness where it naturally fits, and Promptfoo as a specialized regression
+tool. They do not justify project-owned storage, evaluation, UI, or
+orchestration frameworks. See
 [ADR 0002](../decisions/0002-provisional-tool-composition.md).

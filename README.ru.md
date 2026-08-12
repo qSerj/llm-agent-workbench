@@ -81,11 +81,13 @@ runner сохраняет наблюдаемые step-метрики, а не п
 ## Куда развивается проект
 
 Тег `prototype-r4.2` — историческая исходная точка, не стабильный релиз.
-Ближайший этап — практическое сравнение готовых open-source систем для
-экспериментов, tracing и evaluation. Прототип не рефакторируется, пока эта
-проверка не покажет, какой небольшой интеграционный слой действительно нужен.
+Первый bake-off показал, что MLflow подходит как каноническая запись
+эксперимента, а Inspect — как agent harness там, где он естественно применим.
+Текущий этап — минимальная композиция с проверкой частичных сбоев, переносимой
+телеметрии, human review и нетекстовых артефактов до рефакторинга прототипа.
 
 См. [VISION.md](VISION.md), [протокол bake-off](docs/research/bakeoff-protocol.md),
-[обзор инструментов](docs/research/tool-landscape.md) и
-[заметки об orchestration](docs/orchestration.md).
+[обзор инструментов](docs/research/tool-landscape.md),
+[импорт реального OpenCode-запуска](docs/research/legacy-opencode-results-2026-08-12.md),
+а также [заметки об orchestration](docs/orchestration.md).
 Правила разработки описаны в [AGENTS.md](AGENTS.md). Лицензия — [MIT](LICENSE).
