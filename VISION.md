@@ -93,9 +93,12 @@ telemetry using OpenTelemetry/OpenInference rather than a private span format.
 
 The second research slice has validated partial-failure import, real OTLP/HTTP
 protobuf export, and binary audio artifacts evaluated outside an LLM workflow.
-Actual human review is the remaining gate. See the
+The first human review is complete and showed why verdicts, checks, and
+task-specific quality dimensions must remain distinct. See the
 [composition results](docs/research/composition-results-2026-08-12.md) and the
-[portable-envelope decision](docs/decisions/0003-portable-execution-envelope.md).
+[portable-envelope decision](docs/decisions/0003-portable-execution-envelope.md),
+followed by the concrete
+[v1 serialization decision](docs/decisions/0004-envelope-v1-serialization-and-evaluation.md).
 
 ### 3. Economical pipelines
 

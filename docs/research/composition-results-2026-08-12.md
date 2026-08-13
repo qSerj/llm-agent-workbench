@@ -73,10 +73,17 @@ portable execution-telemetry projection. Inspect and Promptfoo remain optional
 harnesses for their natural task shapes. None of these should define the
 project's task intent or force binary artifacts into text cells.
 
-## Remaining Check
+## Human Review Follow-up
 
-A coarse MLflow trace has been prepared for a real human review of the legacy
-report. MLflow feedback is trace/span-centred, while the workbench conceptually
-attaches evaluation to an execution, output artifact, claim, or trajectory.
-The first human assessment will test whether a small correlation adapter is
-sufficient or whether that mismatch becomes a repeated domain-level gap.
+The first genuine human assessment was completed on 2026-08-13. The legacy
+report received `correctness = 1/2`, the other three dimensions `2/2`, and an
+overall `PASS`. The reviewer considered the report useful but identified its
+fabricated usage example. See the
+[full assessment](human-assessment-legacy-task01-2026-08-13.md).
+
+The review exposed a rubric issue more important than the individual scores:
+simple tasks may need only explicit checks and a verdict, while complex tasks
+need anchored, task-specific dimensions. A verdict and dimension scores must
+therefore remain separate. This result closes the remaining composition gate
+and informs the concrete v1 serialization decision in
+[ADR 0004](../decisions/0004-envelope-v1-serialization-and-evaluation.md).

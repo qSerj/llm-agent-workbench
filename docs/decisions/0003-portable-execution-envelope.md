@@ -43,5 +43,7 @@ trace IDs and OTel trace/span IDs are correlations, not domain primary keys.
 An adapter may create a coarse trace when a backend requires trace-attached
 human feedback. If this becomes awkward across several modalities or tools,
 record the repeated mismatch before extending the owned model. The concrete
-serialization of the envelope remains deliberately undecided until the human
-review and another modality have exercised it.
+serialization was deliberately deferred until human review and another
+modality exercised it. Both gates are now complete; JSON serialization and
+evaluation semantics are specified in
+[ADR 0004](0004-envelope-v1-serialization-and-evaluation.md).

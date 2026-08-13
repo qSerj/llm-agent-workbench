@@ -46,10 +46,10 @@ grader score masked an unsupported claim, and `git.diff` omitted an untracked
 output that remained available in the workspace artifact.
 
 Follow-up experiments successfully imported a partial execution, exported the
-legacy trace as real OTLP/HTTP protobuf, and stored and evaluated binary audio
-artifacts produced by ordinary programs. See the
+legacy trace as real OTLP/HTTP protobuf, stored and evaluated binary audio
+artifacts produced by ordinary programs, and completed a genuine human review.
+See the
 [composition results](../research/composition-results-2026-08-12.md) and
-[ADR 0003](0003-portable-execution-envelope.md). Actual human review remains
-open. If artifact-first execution or claim-level evidence repeatedly fights
-the selected tools, document that concrete gap before expanding the small
-project-owned envelope.
+[ADR 0003](0003-portable-execution-envelope.md). If artifact-first execution or
+claim-level evidence repeatedly fights the selected tools, document that
+concrete gap before expanding the small project-owned envelope.

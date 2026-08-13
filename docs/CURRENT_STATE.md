@@ -1,6 +1,6 @@
 # Current Research State
 
-Checkpoint: 2026-08-12. This document is the handoff point for continuing on
+Checkpoint: 2026-08-13. This document is the handoff point for continuing on
 another machine or in another session.
 
 ## Where We Stopped
@@ -32,6 +32,14 @@ artifacts produced by ordinary programs. The details and measurements are in
 Earlier model runs and their preliminary role assessments are preserved in
 [the model observations](research/model-observations-before-workbench.md).
 
+The first genuine human review is now recorded in
+[the human assessment](research/human-assessment-legacy-task01-2026-08-13.md).
+It confirmed that a formally perfect result can contain a factual defect and
+that an overall verdict must remain separate from optional quality dimensions.
+The concrete envelope v1 serialization and evaluation rules are accepted in
+[ADR 0004](decisions/0004-envelope-v1-serialization-and-evaluation.md): UTF-8
+JSON validated by JSON Schema Draft 2020-12, with raw artifacts authoritative.
+
 On the current work machine, the GTX 960 2 GB is not a practical LLM accelerator
 even when its desktop driver is active. Prefer OpenRouter and GigaChat for
 interactive experiments. Treat local GPT-OSS/Nemotron runs as deliberate
@@ -46,17 +54,16 @@ The named shortlist to retain across future experiments is:
 
 ## Exact Next Step
 
-Complete one genuine human assessment of the legacy generated report. Record
-four 0–2 scores (`correctness`, `coverage`, `evidence`, `usefulness`), a
-`PASS`/`FAIL` verdict, rationale, reviewer identity, rubric version, and the
-evaluated execution/output correlation. Do not synthesize this assessment with
-code or an LLM.
+Define the minimal JSON Schema for execution envelope v1 and create one small,
+reproducible adapter that emits and validates it from the existing successful
+legacy run. Then exercise the same schema against the partial failure and the
+two audio candidates. Import the validated envelope into MLflow and project its
+activity to OTLP without making either backend's identifiers domain keys.
 
-Then decide the concrete serialization and validation rules for version 1 of
-the execution envelope. Start implementation only after that decision. The
-first implementation should be a small reproducible adapter, not a platform or
-UI. Economical multi-agent pipelines and context/model routing follow after the
-envelope works end to end.
+Do not build a platform or UI during this step. Once this path works end to
+end, run the first `solver → reviewer → fixer` comparison, initially targeting
+the fabricated-example failure class. Economical multi-agent pipelines and
+context/model routing expand only from measured results.
 
 ## Continuing on Another Machine
 
