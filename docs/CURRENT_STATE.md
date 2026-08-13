@@ -37,6 +37,13 @@ even when its desktop driver is active. Prefer OpenRouter and GigaChat for
 interactive experiments. Treat local GPT-OSS/Nemotron runs as deliberate
 privacy, fallback, or unattended-batch cases rather than the default path.
 
+The named shortlist to retain across future experiments is:
+
+- **Xiaomi MiMo v2.5** (OpenRouter): fast, inexpensive worker; verify facts;
+- **DeepSeek V4 Flash** (OpenRouter): careful solver and reviewer;
+- **GLM-4.7 Flash** (OpenRouter): useful alternative; constrain interpretation;
+- **GigaChat-3-Ultra** (Sber via `gpt2giga`): strong, fast agent candidate.
+
 ## Exact Next Step
 
 Complete one genuine human assessment of the legacy generated report. Record
