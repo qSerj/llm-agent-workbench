@@ -36,7 +36,7 @@ The first genuine human review is now recorded in
 [the human assessment](research/human-assessment-legacy-task01-2026-08-13.md).
 It confirmed that a formally perfect result can contain a factual defect and
 that an overall verdict must remain separate from optional quality dimensions.
-The concrete envelope v1 serialization and evaluation rules are accepted in
+The concrete envelope v1 serialization and evaluation rules are implemented in
 [ADR 0004](decisions/0004-envelope-v1-serialization-and-evaluation.md): UTF-8
 JSON validated by JSON Schema Draft 2020-12, with raw artifacts authoritative.
 
@@ -54,16 +54,17 @@ The named shortlist to retain across future experiments is:
 
 ## Exact Next Step
 
-Define the minimal JSON Schema for execution envelope v1 and create one small,
-reproducible adapter that emits and validates it from the existing successful
-legacy run. Then exercise the same schema against the partial failure and the
-two audio candidates. Import the validated envelope into MLflow and project its
-activity to OTLP without making either backend's identifiers domain keys.
+Envelope v1 now validates the successful and partial legacy runs plus freshly
+reproduced correct and defective binary-audio candidates. The adapters verify
+artifact hashes, import queryable records and artifacts into MLflow, and export
+real OTLP/HTTP protobuf with correlation IDs. Usage is documented in
+[the envelope v1 guide](envelope-v1.md).
 
-Do not build a platform or UI during this step. Once this path works end to
-end, run the first `solver → reviewer → fixer` comparison, initially targeting
-the fabricated-example failure class. Economical multi-agent pipelines and
-context/model routing expand only from measured results.
+The next experiment is the first `solver → reviewer → fixer` comparison,
+initially targeting the fabricated-example failure class. Compare it against a
+single solver and retain every stage, revision, cost, and failed attempt in the
+same experiment. Do not add a workflow engine or UI; economical multi-agent
+pipelines and context/model routing expand only from measured results.
 
 ## Continuing on Another Machine
 

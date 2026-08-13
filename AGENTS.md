@@ -2,10 +2,15 @@
 
 ## Project Structure & Module Organization
 
-This repository benchmarks OpenCode agents against a synthetic .NET 8 project.
+This repository preserves an OpenCode/.NET benchmark and develops a small,
+domain-neutral execution-envelope composition layer.
 
 - `run_agent.py` configures providers, creates isolated workspaces, runs tasks, and records usage and cost data.
 - `grade.py` scores a completed task workspace.
+- `workbench/` validates execution envelopes and projects them to optional backends.
+- `schemas/` contains versioned JSON Schema contracts; keep v1 backward-compatible.
+- `tools/` contains narrow import/export CLIs; `examples/` proves non-coding artifact flows.
+- `evaluations/` contains versioned assessments bound to artifact hashes.
 - `tasks/01.md` through `tasks/03.md` contain the benchmark prompts; keep numbering zero-padded.
 - `fixture/` is the source template copied for each run. Its C# projects live under `fixture/src/`, with the solution at `fixture/InterleaverBench.sln`.
 - `tests/` contains offline unit tests; `.github/workflows/ci.yml` runs them and builds the fixture.
@@ -18,13 +23,16 @@ Use Python 3 and the .NET 8 SDK from the repository root:
 
 ```bash
 python3 run_agent.py --version
-python3 -m py_compile run_agent.py grade.py
+python3 -m pip install -r requirements-envelope.txt
 python3 -m unittest discover -s tests -v
 dotnet build fixture/InterleaverBench.sln -m:1
 python3 grade.py agent_runs/<run>/task01/workspace --task 1
 ```
 
-The first command confirms the runner is usable; `py_compile` catches Python syntax errors; `unittest` checks runner behavior; `dotnet build` validates the fixture; and `grade.py` checks one completed workspace. A full benchmark requires OpenCode plus a configured provider, for example `python3 run_agent.py --provider openrouter --model <model-id> --tasks 1`.
+The first command confirms the runner is usable; the install supplies standard
+JSON Schema validation; `unittest` checks runner and envelope behavior;
+`dotnet build` validates the fixture; and `grade.py` checks one completed
+workspace. A full benchmark requires OpenCode plus a configured provider.
 
 ## Coding Style & Naming Conventions
 
@@ -34,7 +42,11 @@ For C#, retain nullable reference types and implicit usings. Use PascalCase for 
 
 ## Testing Guidelines
 
-Tests use the standard-library `unittest` framework and follow `tests/test_*.py` naming. Validate runner changes with the full unit suite, build the fixture, and run the smallest relevant benchmark task when provider behavior changes. When changing task expectations, update the corresponding branch in `grade.py` and verify both passing and intentionally failing workspaces. Do not modify `fixture/src/` merely to make grading pass.
+Tests use the standard-library `unittest` framework and follow `tests/test_*.py`
+naming. Envelope changes must cover successful, partial, and failed executions,
+artifact tampering, and both text and binary artifacts. Validate projections
+against disposable local backends. Do not commit generated MLflow databases,
+audio outputs, or benchmark runs.
 
 ## Commit & Pull Request Guidelines
 

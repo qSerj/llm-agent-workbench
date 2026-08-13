@@ -1,6 +1,6 @@
 # ADR 0004: Envelope v1 Serialization and Evaluation Semantics
 
-Status: accepted for the first reproducible adapter, 2026-08-13.
+Status: accepted and implemented for the first reproducible adapter, 2026-08-13.
 
 ## Context
 

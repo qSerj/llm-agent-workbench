@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qSerj/llm-agent-workbench/schemas/execution-envelope-v1.schema.json",
+  "title": "LLM Agent Workbench Execution Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "execution_id",
+    "task",
+    "case",
+    "candidate",
+    "repetition",
+    "lifecycle",
+    "executor",
+    "artifacts",
+    "observations",
+    "evaluations",
+    "correlations"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "execution_id": { "$ref": "#/$defs/nonEmptyString" },
+    "task": { "$ref": "#/$defs/versionedReference" },
+    "case": { "$ref": "#/$defs/versionedReference" },
+    "candidate": {
+      "allOf": [
+        { "$ref": "#/$defs/versionedReference" },
+        {
+          "type": "object",
+          "properties": {
+            "parameters": { "type": "object" }
+          }
+        }
+      ]
+    },
+    "repetition": { "type": "integer", "minimum": 1 },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "started_at", "finished_at", "timestamp_basis"],
+      "properties": {
+        "status": {
+          "enum": ["SUCCEEDED", "FAILED", "PARTIAL", "CANCELLED", "TIMED_OUT"]
+        },
+        "started_at": { "$ref": "#/$defs/nonEmptyString" },
+        "finished_at": { "$ref": "#/$defs/nonEmptyString" },
+        "timestamp_basis": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["implementation", "version", "exit_code"],
+      "properties": {
+        "implementation": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "exit_code": { "type": ["integer", "null"] }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "observations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/observation" }
+    },
+    "evaluations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evaluation" }
+    },
+    "correlations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/correlation" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "versionedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "parameters": { "type": "object" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "content_kind", "media_type", "byte_size", "sha256", "digest_method", "location"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "role": { "enum": ["INPUT", "OUTPUT", "LOG", "EVIDENCE", "OTHER"] },
+        "content_kind": { "enum": ["FILE", "DIRECTORY"] },
+        "media_type": { "$ref": "#/$defs/nonEmptyString" },
+        "byte_size": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "digest_method": {
+          "enum": ["sha256-file-bytes", "sha256-tree-manifest-v1"]
+        },
+        "exclusions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "location": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["uri"],
+              "properties": {
+                "uri": { "type": "string", "format": "uri" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "unit", "method"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "type": ["number", "integer", "string", "boolean", "null"] },
+        "unit": { "$ref": "#/$defs/nonEmptyString" },
+        "method": { "$ref": "#/$defs/nonEmptyString" },
+        "uncertainty": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "subject", "evaluator", "policy", "result", "rationale", "evidence_artifact_ids"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "subject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": { "enum": ["EXECUTION", "ARTIFACT", "CLAIM", "TRAJECTORY"] },
+            "id": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        "evaluator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "identity"],
+          "properties": {
+            "source": { "enum": ["CODE", "HUMAN", "LLM_JUDGE"] },
+            "identity": { "$ref": "#/$defs/nonEmptyString" },
+            "provider": { "$ref": "#/$defs/nonEmptyString" },
+            "model": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        },
+        "policy": { "$ref": "#/$defs/versionedReference" },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["verdict"],
+          "properties": {
+            "verdict": { "enum": ["PASS", "FAIL", "UNDETERMINED"] },
+            "checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "outcome"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/nonEmptyString" },
+                  "outcome": { "enum": ["PASS", "FAIL", "UNDETERMINED"] },
+                  "value": { "type": ["number", "integer", "string", "boolean", "null"] },
+                  "maximum": { "type": ["number", "integer", "null"] },
+                  "rationale": { "type": "string" }
+                }
+              }
+            },
+            "dimensions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "value", "scale"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/nonEmptyString" },
+                  "value": { "type": "number" },
+                  "scale": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["minimum", "maximum", "direction", "anchors"],
+                    "properties": {
+                      "minimum": { "type": "number" },
+                      "maximum": { "type": "number" },
+                      "direction": { "enum": ["HIGHER_IS_BETTER", "LOWER_IS_BETTER"] },
+                      "anchors": {
+                        "type": "object",
+                        "minProperties": 2,
+                        "additionalProperties": { "type": "string", "minLength": 1 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rationale": { "type": "string" },
+        "evidence_artifact_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "evaluator": {
+                "properties": { "source": { "const": "LLM_JUDGE" } },
+                "required": ["source"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "evaluator": { "required": ["provider", "model"] }
+            }
+          }
+        }
+      ]
+    },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "kind", "value"],
+      "properties": {
+        "system": { "$ref": "#/$defs/nonEmptyString" },
+        "kind": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

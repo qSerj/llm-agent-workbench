@@ -87,3 +87,30 @@ need anchored, task-specific dimensions. A verdict and dimension scores must
 therefore remain separate. This result closes the remaining composition gate
 and informs the concrete v1 serialization decision in
 [ADR 0004](../decisions/0004-envelope-v1-serialization-and-evaluation.md).
+
+## Envelope v1 Implementation Follow-up
+
+On 2026-08-13, the accepted envelope was implemented as JSON Schema Draft
+2020-12 plus a small legacy-run adapter. The successful run and partial run
+both validate. Their filtered source trees have the same deterministic digest,
+while generated `bin` and `obj` content is excluded. The human assessment is
+attached only after its subject artifact SHA-256 is verified.
+
+A clean local MLflow experiment then imported four executions:
+
+| Execution | Lifecycle | Evaluation |
+| --- | --- | --- |
+| successful legacy agent | `SUCCEEDED` | code `PASS`, human `PASS` |
+| partial legacy agent | `PARTIAL` | code `FAIL` |
+| correct `ffmpeg` conversion | `SUCCEEDED` | 4/4, `PASS` |
+| defective `ffmpeg` conversion | `SUCCEEDED` | 1/4, `FAIL` |
+
+MLflow exposed observations as metrics, evaluation verdicts as tags, and kept
+the binary and text artifacts. This demonstrates why execution status and
+result quality must not be collapsed: a program may execute successfully and
+still produce a failing result.
+
+The OTLP command-line projection sent one official protobuf request to a
+loopback receiver. The payload was 4,949 bytes and its generated trace/span IDs
+were returned as envelope correlations. These measurements are smoke-test
+observations from this machine, not stable protocol-size promises.

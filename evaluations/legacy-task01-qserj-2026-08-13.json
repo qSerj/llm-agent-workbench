@@ -1,0 +1,83 @@
+{
+  "subject_sha256": "da5ea997f3996e8c9e6ef4b701c3621389bba340387ff4d6dfdd52408cb77e5b",
+  "id": "human-qserj-2026-08-13",
+  "subject": {
+    "kind": "ARTIFACT",
+    "id": "generated-document"
+  },
+  "evaluator": {
+    "source": "HUMAN",
+    "identity": "qSerj"
+  },
+  "policy": {
+    "id": "legacy-documentation-human",
+    "version": "v0"
+  },
+  "result": {
+    "verdict": "PASS",
+    "dimensions": [
+      {
+        "id": "correctness",
+        "value": 1,
+        "scale": {
+          "minimum": 0,
+          "maximum": 2,
+          "direction": "HIGHER_IS_BETTER",
+          "anchors": {
+            "0": "Materially incorrect",
+            "1": "Useful but contains a factual defect",
+            "2": "No factual defect identified"
+          }
+        }
+      },
+      {
+        "id": "coverage",
+        "value": 2,
+        "scale": {
+          "minimum": 0,
+          "maximum": 2,
+          "direction": "HIGHER_IS_BETTER",
+          "anchors": {
+            "0": "Material required content is absent",
+            "1": "Partially covers the required content",
+            "2": "Covers the required content"
+          }
+        }
+      },
+      {
+        "id": "evidence",
+        "value": 2,
+        "scale": {
+          "minimum": 0,
+          "maximum": 2,
+          "direction": "HIGHER_IS_BETTER",
+          "anchors": {
+            "0": "Evidence is absent",
+            "1": "Evidence is incomplete",
+            "2": "Evidence is sufficient for this small task"
+          }
+        }
+      },
+      {
+        "id": "usefulness",
+        "value": 2,
+        "scale": {
+          "minimum": 0,
+          "maximum": 2,
+          "direction": "HIGHER_IS_BETTER",
+          "anchors": {
+            "0": "Not useful",
+            "1": "Useful with substantial qualification",
+            "2": "Useful for the intended purpose"
+          }
+        }
+      }
+    ]
+  },
+  "rationale": "The concise report is useful and sufficiently detailed for the tiny fixture, but it fabricates the TableInterleaverProfile plus WriteRegisters usage snippet. The real usage constructs SimpleInterleaverProfile and calls DeviceController.ApplyInterleaverProfile. The reviewer also considers a universal 0-2 scale too coarse for complex tasks and a 0-10 scale falsely precise for nearly binary tasks.",
+  "evidence_artifact_ids": [
+    "generated-document",
+    "task-prompt",
+    "source-tree"
+  ]
+}

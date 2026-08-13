@@ -23,7 +23,8 @@ it is not yet the result-management application described in [VISION.md](VISION.
 
 ## Requirements
 
-- Python 3.10 or newer (standard library only)
+- Python 3.10 or newer; the historical runner itself uses only the standard library
+- `jsonschema` for envelope validation (`requirements-envelope.txt`)
 - [OpenCode](https://opencode.ai/) available as `opencode`
 - .NET 8 SDK to validate the included C# fixture
 - LM Studio CLI (`lms`) only for `--provider lmstudio`
@@ -70,9 +71,14 @@ reference is available through `python3 run_agent.py --help`.
 ```text
 run_agent.py             benchmark runner and telemetry collection
 grade.py                 deterministic task grader
+workbench/               envelope validation and optional projections
+schemas/                 versioned interchange schemas
+tools/                   conversion and export command-line adapters
+evaluations/             versioned, artifact-bound assessments
+examples/                domain-neutral executable examples
 tasks/                   prompts shared by all models
 fixture/                 synthetic .NET 8 repository under test
-tests/                   offline unit tests for runner behavior
+tests/                   offline unit tests
 docs/                    provider and telemetry documentation
 providers.example.json   secret-free configuration examples
 ```
@@ -98,9 +104,9 @@ estimate from user-supplied average power, not a hardware measurement. Read
 
 `prototype-r4.2` is a historical baseline, not a stable release. The first
 tooling bake-off supports MLflow as the canonical experiment record and Inspect
-as an agent harness where it naturally fits. The current milestone is a minimal
-composition experiment covering partial failures, portable telemetry, human
-review, and non-text artifacts before any prototype refactor.
+as an agent harness where it naturally fits. The minimal composition now covers
+partial failures, portable telemetry, human review, and non-text artifacts.
+The next milestone compares a single solver with `solver → reviewer → fixer`.
 
 See [VISION.md](VISION.md), the [bake-off protocol](docs/research/bakeoff-protocol.md),
 the [current research state](docs/CURRENT_STATE.md),
@@ -108,6 +114,7 @@ the [tool landscape](docs/research/tool-landscape.md), the
 [prior model observations](docs/research/model-observations-before-workbench.md),
 the [legacy OpenCode import](docs/research/legacy-opencode-results-2026-08-12.md),
 the [minimal composition results](docs/research/composition-results-2026-08-12.md),
+the [execution envelope v1 guide](docs/envelope-v1.md),
 and the [multi-agent orchestration notes](docs/orchestration.md).
 
 ## Contributing and license

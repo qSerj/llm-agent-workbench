@@ -23,7 +23,8 @@ LLM Agent Workbench — ранний исследовательский прот
 
 ## Требования
 
-- Python 3.10+ без сторонних Python-зависимостей;
+- Python 3.10+; исторический runner не имеет сторонних зависимостей;
+- `jsonschema` для проверки envelope (`requirements-envelope.txt`);
 - [OpenCode](https://opencode.ai/) в `PATH`;
 - .NET 8 SDK для проверки C# fixture;
 - CLI LM Studio (`lms`) только для локального режима LM Studio.
@@ -83,11 +84,13 @@ runner сохраняет наблюдаемые step-метрики, а не п
 Тег `prototype-r4.2` — историческая исходная точка, не стабильный релиз.
 Первый bake-off показал, что MLflow подходит как каноническая запись
 эксперимента, а Inspect — как agent harness там, где он естественно применим.
-Текущий этап — минимальная композиция с проверкой частичных сбоев, переносимой
-телеметрии, human review и нетекстовых артефактов до рефакторинга прототипа.
+Минимальная композиция уже проверена на частичных сбоях, переносимой
+телеметрии, human review и нетекстовых артефактах. Следующий этап — первый
+сравнительный `solver → reviewer → fixer` эксперимент.
 
 См. [VISION.md](VISION.md), [протокол bake-off](docs/research/bakeoff-protocol.md),
 [обзор инструментов](docs/research/tool-landscape.md),
 [импорт реального OpenCode-запуска](docs/research/legacy-opencode-results-2026-08-12.md),
+[формат execution envelope v1](docs/envelope-v1.md),
 а также [заметки об orchestration](docs/orchestration.md).
 Правила разработки описаны в [AGENTS.md](AGENTS.md). Лицензия — [MIT](LICENSE).
