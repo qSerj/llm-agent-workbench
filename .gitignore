@@ -1,6 +1,10 @@
 # Benchmark output and local provider configuration
 agent_runs/
 mlruns/
+transfer-kit/
+.research-env/
+.promptfoo-env/
+.promptfoo-data/
 opencode.json
 .env
 .env.*
