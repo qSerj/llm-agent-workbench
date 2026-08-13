@@ -1,12 +1,12 @@
-# Execution Envelope v1
+# Карточка исполнения v1
 
-The execution envelope is the small project-owned interchange record between
-an arbitrary executor and integrations such as MLflow and OpenTelemetry. It is
-not a workflow definition, trace format, or artifact store.
+Карточка исполнения — небольшая принадлежащая проекту запись для обмена данными
+между произвольным исполнителем и MLflow, OpenTelemetry и другими системами.
+Это не описание цепочки, не формат трассировки и не хранилище артефактов.
 
-The schema is
+Схема находится в
 [`schemas/execution-envelope-v1.schema.json`](../schemas/execution-envelope-v1.schema.json).
-Validation uses the standard `jsonschema` package:
+Для проверки используется пакет `jsonschema`:
 
 ```bash
 python3 -m venv .venv
@@ -16,28 +16,36 @@ python3 -m venv .venv
   --output /tmp/execution-envelope.json
 ```
 
-Add `--human-evaluation evaluations/legacy-task01-qserj-2026-08-13.json`
-when converting the matching historical execution. The adapter verifies the
-reviewed output's SHA-256 before attaching the assessment.
+При преобразовании соответствующего старого исполнения можно добавить
+`--human-evaluation evaluations/legacy-task01-qserj-2026-08-13.json`.
+Перед присоединением ручной оценки программа сверит SHA-256 результата.
 
-## Semantics
+## Смысл полей
 
-`task`, `case`, and `candidate` are versioned identities. The legacy adapter
-content-addresses the task prompt and filtered source tree rather than trusting
-a mutable label. `artifacts` may be
-files or directory trees and remain external to the JSON. A directory digest
-is calculated over a deterministic manifest; the legacy source-tree adapter
-excludes `bin` and `obj`. `observations` always state a unit and measurement
-method. Unknown values are omitted or `null`, never silently converted to zero.
+`task`, `case` и `candidate` — версионируемые идентификаторы. Программа
+преобразования старых запусков связывает задание и отфильтрованное дерево
+исходников с их содержимым, а не доверяет изменяемому имени. `artifacts` могут
+быть файлами или каталогами и не помещаются внутрь JSON. Контрольная сумма
+каталога вычисляется по однозначному перечню файлов; для старого стенда
+исключаются `bin` и `obj`. В `observations` всегда указаны единица и способ
+измерения. Неизвестное значение пропускается или записывается как `null`, но не
+превращается в ноль.
 
-Evaluations name their subject and retain their source as `CODE`, `HUMAN`, or
-`LLM_JUDGE`. Checks, optional anchored dimensions, and the overall verdict are
-independent. No universal score or implicit verdict threshold exists.
+Каждая оценка указывает предмет и источник: `CODE`, `HUMAN` или `LLM_JUDGE`.
+Отдельные проверки, необязательные числовые измерения и общий вердикт независимы.
+Универсальной оценки и скрытого порога для вердикта нет.
 
-## Optional Projections
+Для многоэтапного способа решения необязательное поле `stages` хранит роль
+этапа, отдельный идентификатор исполнения, зависимости и точные идентификаторы
+входных и выходных артефактов. Наблюдение может ссылаться на `stage_id`. Так
+описываются состав цепочки и происхождение версий, но карточка не запускает
+этапы и не превращает лабораторию в движок цепочек. См.
+[проверенный пример «исполнитель → проверяющий → исправляющий»](../experiments/solver_reviewer_fixer/strict-chain-envelope.json).
 
-After activating the transferred research environment, import a validated
-record and its verified local artifacts into MLflow:
+## Необязательный перенос данных
+
+После включения исследовательского окружения проверенную карточку и сверенные
+локальные артефакты можно перенести в MLflow:
 
 ```bash
 python tools/envelope_to_mlflow.py /tmp/execution-envelope.json \
@@ -45,13 +53,13 @@ python tools/envelope_to_mlflow.py /tmp/execution-envelope.json \
   --tracking-uri sqlite:////tmp/workbench-mlflow.db
 ```
 
-Export the execution projection to any OTLP/HTTP receiver:
+Сведения об исполнении можно передать любому приёмнику OTLP/HTTP:
 
 ```bash
 python tools/envelope_to_otlp.py /tmp/execution-envelope.json \
   --endpoint http://127.0.0.1:4318/v1/traces
 ```
 
-MLflow run IDs and OTel trace/span IDs are correlations. They do not replace
-the workbench execution identity or make either backend authoritative for task
-semantics.
+Идентификаторы исполнения MLflow и трассировки OTel — только внешние связи. Они
+не заменяют `execution_id` лаборатории и не делают внешнюю систему главным
+источником смысла задачи.

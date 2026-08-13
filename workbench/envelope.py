@@ -335,11 +335,65 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
     if len(evaluation_ids) != len(set(evaluation_ids)):
         raise ValueError("invalid execution envelope: evaluation IDs must be unique")
 
+    stages = envelope.get("stages", [])
+    stage_ids = [item["id"] for item in stages]
+    if len(stage_ids) != len(set(stage_ids)):
+        raise ValueError("invalid execution envelope: stage IDs must be unique")
+    stage_id_set = set(stage_ids)
+    dependencies = {item["id"]: set(item["depends_on"]) for item in stages}
+    for stage in stages:
+        unknown_dependencies = set(stage["depends_on"]) - stage_id_set
+        if unknown_dependencies:
+            raise ValueError(
+                "invalid execution envelope: unknown stage dependencies "
+                + ", ".join(sorted(unknown_dependencies))
+            )
+        if stage["id"] in stage["depends_on"]:
+            raise ValueError(
+                f"invalid execution envelope: stage depends on itself: {stage['id']}"
+            )
+        unknown_artifacts = (
+            set(stage["input_artifact_ids"] + stage["output_artifact_ids"])
+            - artifact_id_set
+        )
+        if unknown_artifacts:
+            raise ValueError(
+                "invalid execution envelope: unknown stage artifacts "
+                + ", ".join(sorted(unknown_artifacts))
+            )
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(stage_id: str) -> None:
+        if stage_id in visiting:
+            raise ValueError("invalid execution envelope: stage dependency cycle")
+        if stage_id in visited:
+            return
+        visiting.add(stage_id)
+        for dependency in dependencies[stage_id]:
+            visit(dependency)
+        visiting.remove(stage_id)
+        visited.add(stage_id)
+
+    for stage_id in stage_ids:
+        visit(stage_id)
+
+    for item in envelope["observations"]:
+        if "stage_id" in item and item["stage_id"] not in stage_id_set:
+            raise ValueError(
+                f"invalid execution envelope: unknown observation stage {item['stage_id']}"
+            )
+
     for evaluation in envelope["evaluations"]:
         subject = evaluation["subject"]
         if subject["kind"] == "ARTIFACT" and subject["id"] not in artifact_id_set:
             raise ValueError(
                 f"invalid execution envelope: unknown subject artifact {subject['id']}"
+            )
+        if subject["kind"] == "STAGE" and subject["id"] not in stage_id_set:
+            raise ValueError(
+                f"invalid execution envelope: unknown subject stage {subject['id']}"
             )
         unknown_evidence = set(evaluation["evidence_artifact_ids"]) - artifact_id_set
         if unknown_evidence:

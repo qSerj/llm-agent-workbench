@@ -1,0 +1,75 @@
+{
+  "verdict": "FAIL",
+  "findings": [
+    {
+      "id": "kind-discriminator-purpose",
+      "claim": "docs/01-interleavers.md:9 — `Kind` (string, read-only) — «A discriminator that identifies the profile type».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/IInterleaverProfile.cs:5 — интерфейс объявляет только `string Kind { get; }` без пояснения назначения",
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:9 и src/Interleaver.Core/TableInterleaverProfile.cs:8 — возвращают литералы \"simple\"/\"table\", но ни один файл в src/ не читает и не использует Kind как дискриминатор"
+      ],
+      "suggested_fix": "Переформулировать проверяемо: «Kind (string, read-only) — свойство, возвращающее константную строку: \"simple\" у SimpleInterleaverProfile и \"table\" у TableInterleaverProfile». Роль «дискриминатора» не подтверждена кодом — пометить UNKNOWN или удалить."
+    },
+    {
+      "id": "branch-count-semantics",
+      "claim": "docs/01-interleavers.md:24 — `BranchCount` — «Number of interleaver branches (must be 2–16)»; docs/01-interleavers.md:44 — регистр 0 «Number of branches to configure».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:16 — ToRegisters() возвращает new[] { BranchCount, DelayStepSymbols }; доказан только состав массива",
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:12 — проверяется только диапазон 2–16; нигде в src/ нет определения, что значение физически означает «число ветвей» для устройства (правило 1)"
+      ],
+      "suggested_fix": "Оставить проверяемую часть («BranchCount — int; конструктор допускает 2–16»), а семантическое описание «Number of interleaver branches / Number of branches to configure» пометить UNKNOWN или перенести в раздел Unknowns."
+    },
+    {
+      "id": "delay-step-semantics",
+      "claim": "docs/01-interleavers.md:20 — «a per-branch delay step»; docs/01-interleavers.md:25 — «Delay increment between consecutive branches (must be ≥ 0)»; docs/01-interleavers.md:45 — регистр 1 «Delay step in symbols between branches».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:13 — проверяется только `delayStepSymbols >= 0`; значение не ограничивается сверху",
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:16 — значение передаётся как элемент массива; нигде в src/ не определено, что это «шаг задержки в символах между ветвями» (правило 1)"
+      ],
+      "suggested_fix": "Заменить на проверяемое: «DelayStepSymbols — int; валидация требует >= 0». Семантику «delay increment between consecutive branches / delay step in symbols» пометить UNKNOWN (аппаратное значение в репозитории не описано)."
+    },
+    {
+      "id": "table-delay-semantics",
+      "claim": "docs/01-interleavers.md:51 — «stores an explicit delay table — one delay value per branch»; docs/01-interleavers.md:75 — «Explicit delay (in symbols) for branch i».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/TableInterleaverProfile.cs:17 — ToRegisters() возвращает _delays напрямую; доказано только, что возвращается массив задержек",
+        "src/Interleaver.Core/TableInterleaverProfile.cs:15 — проверяется только `x >= 0`; нигде в src/ не утверждается, что i-й элемент означает «задержку в символах для ветви i» (правило 1)"
+      ],
+      "suggested_fix": "Оставить проверяемое: «Delays — копия массива, переданного в конструктор; ToRegisters() возвращает его напрямую». Семантику «one delay value per branch / delay in symbols for branch i» пометить UNKNOWN."
+    },
+    {
+      "id": "implicit-branch-count",
+      "claim": "docs/01-interleavers.md:77 — «the register count itself implicitly determines the number of branches».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/TableInterleaverProfile.cs:17 — ToRegisters() возвращает только _delays без отдельного регистра числа ветвей; это доказано",
+        "src/Interleaver.Core/TableInterleaverProfile.cs:13-14 — длина ограничена 2–32; нигде в репозитории не написано, что устройство определяет число ветвей по длине массива регистров (правило 3)"
+      ],
+      "suggested_fix": "Первую часть предложения («no separate branch count register is emitted») оставить, а утверждение об интерпретации длины массива устройством пометить UNKNOWN или перенести в раздел Unknowns (правило 3)."
+    },
+    {
+      "id": "transport-delivery",
+      "claim": "docs/01-interleavers.md:103 — «Calls _transport.WriteAsync(0x42, registers, cancellationToken) to send command 0x42 plus the register payload to the hardware via the IRegisterTransport abstraction».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Transport/DeviceController.cs:15 — `await _transport.WriteAsync(ApplyInterleaverCommand, registers, cancellationToken);` доказывает только вызов интерфейса",
+        "src/Interleaver.Transport/DeviceController.cs:6 — `ApplyInterleaverCommand = 0x42` подтверждает код команды; доставка данных устройству и поведение оборудования в репозитории не проверяются (правило 2)"
+      ],
+      "suggested_fix": "Переформулировать: «вызывает `_transport.WriteAsync(0x42, registers, cancellationToken)` через абстракцию IRegisterTransport». Слова «to send ... to the hardware» убрать или пометить UNKNOWN, так как вызов транспортного интерфейса не доказывает доставку устройству."
+    },
+    {
+      "id": "transmission-purpose",
+      "claim": "docs/01-interleavers.md:10 — `ToRegisters()` — «Serialises the profile into a flat list of integer register values for transmission to hardware».",
+      "status": "UNKNOWN",
+      "evidence": [
+        "src/Interleaver.Core/SimpleInterleaverProfile.cs:16 и src/Interleaver.Core/TableInterleaverProfile.cs:17 — доказывают «плоский список целых значений»",
+        "src/Interleaver.Transport/DeviceController.cs:13-15 — значения передаются только в транспортный интерфейс; реальная передача «hardware» не доказана (правило 2)"
+      ],
+      "suggested_fix": "Заменить «for transmission to hardware» на проверяемое: «значения передаются транспортному интерфейсу (IRegisterTransport)». Доставку устройству пометить UNKNOWN."
+    }
+  ]
+}

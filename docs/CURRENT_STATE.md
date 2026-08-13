@@ -1,99 +1,103 @@
-# Current Research State
+# Текущее состояние исследований
 
-Checkpoint: 2026-08-13. This document is the handoff point for continuing on
-another machine or in another session.
+Контрольная точка: 2026-08-13. Этот документ позволяет продолжить работу на
+другой машине или в новом сеансе.
 
-## Where We Stopped
+## Где мы остановились
 
-The historical `prototype-r4.2` remains unchanged as a working OpenCode/.NET
-benchmark. Research has moved the intended product boundary away from “another
-agent UI” toward a small composition layer for comparing complete workflows.
+Исторический `prototype-r4.2` сохранён как работающий стенд OpenCode/.NET.
+Исследование ушло от идеи «ещё одного интерфейса для агентов» к небольшому слою
+сопоставления, который сравнивает полные способы решения задач.
 
-The current provisional composition is:
+Предварительная схема сейчас выглядит так:
 
 ```text
-project-owned execution envelope
-  ├─ records task/case/candidate/repetition identity
-  ├─ references arbitrary input and output artifacts
-  ├─ records status, observations, evaluations, and correlations
-  ├─ projects queryable records and artifacts into MLflow
-  └─ exports execution activity as OpenTelemetry OTLP
+карточка исполнения проекта
+  ├─ определяет задачу, пример, способ решения и повторение
+  ├─ ссылается на произвольные входные и выходные артефакты
+  ├─ хранит состояние, наблюдения, оценки и внешние связи
+  ├─ переносит доступные для запросов записи и артефакты в MLflow
+  └─ передаёт сведения об исполнении через OpenTelemetry OTLP
 ```
 
-MLflow is the provisional canonical experiment record. OpenTelemetry and
-OpenInference supply trace vocabulary and transport. Inspect AI and Promptfoo
-remain optional harnesses for tasks that naturally fit them. No custom database,
-trace UI, evaluator framework, or workflow engine is currently justified.
+MLflow пока служит основной записью экспериментов. OpenTelemetry и OpenInference
+дают словарь трассировки и способ передачи данных. Inspect AI и Promptfoo
+остаются необязательными средствами для подходящих им задач. Собственная база,
+интерфейс трассировки, универсальная система оценивания и движок цепочек сейчас
+не нужны.
 
-Hands-on experiments have covered a successful OpenCode run, a partial failed
-run, real OTLP/HTTP protobuf export, and an audio task with binary WAV/FLAC
-artifacts produced by ordinary programs. The details and measurements are in
-[the composition results](research/composition-results-2026-08-12.md).
-Earlier model runs and their preliminary role assessments are preserved in
-[the model observations](research/model-observations-before-workbench.md).
+Практические опыты охватили успешное и частично завершившееся исполнения
+OpenCode, настоящую передачу protobuf через OTLP/HTTP и звуковую задачу с
+бинарными WAV/FLAC-артефактами, созданными обычными программами. Подробности и
+измерения находятся в [результатах сопоставления](research/composition-results-2026-08-12.md).
+Ранние прогоны моделей и предварительные оценки их ролей сохранены в
+[наблюдениях за моделями](research/model-observations-before-workbench.md).
 
-The first genuine human review is now recorded in
-[the human assessment](research/human-assessment-legacy-task01-2026-08-13.md).
-It confirmed that a formally perfect result can contain a factual defect and
-that an overall verdict must remain separate from optional quality dimensions.
-The concrete envelope v1 serialization and evaluation rules are implemented in
-[ADR 0004](decisions/0004-envelope-v1-serialization-and-evaluation.md): UTF-8
-JSON validated by JSON Schema Draft 2020-12, with raw artifacts authoritative.
+Первая настоящая ручная оценка записана в
+[отчёте](research/human-assessment-legacy-task01-2026-08-13.md). Она подтвердила,
+что формально безупречный результат может содержать фактическую ошибку, а общий
+вердикт нельзя выводить из необязательных числовых оценок. Правила сериализации
+и оценивания карточки исполнения v1 закреплены в
+[ADR 0004](decisions/0004-envelope-v1-serialization-and-evaluation.md): JSON в
+UTF-8 проверяется по JSON Schema Draft 2020-12, первичными остаются исходные
+артефакты.
 
-On the current work machine, the GTX 960 2 GB is not a practical LLM accelerator
-even when its desktop driver is active. Prefer OpenRouter and GigaChat for
-interactive experiments. Treat local GPT-OSS/Nemotron runs as deliberate
-privacy, fallback, or unattended-batch cases rather than the default path.
+На этой машине GTX 960 2 ГБ непригодна для практического ускорения языковых
+моделей, хотя драйвер работает. Для интерактивных опытов предпочтительны
+OpenRouter и GigaChat. Локальные GPT-OSS и Nemotron следует запускать ради
+конфиденциальности, как запасной вариант или без присмотра, но не по умолчанию.
 
-The named shortlist to retain across future experiments is:
+Список моделей для следующих опытов:
 
-- **Xiaomi MiMo v2.5** (OpenRouter): fast, inexpensive worker; verify facts;
-- **DeepSeek V4 Flash** (OpenRouter): careful solver and reviewer;
-- **GLM-4.7 Flash** (OpenRouter): useful alternative; constrain interpretation;
-- **GigaChat-3-Ultra** (Sber via `gpt2giga`): strong, fast agent candidate.
+- **Xiaomi MiMo v2.5** (OpenRouter): быстрый и дешёвый исполнитель; факты нужно проверять;
+- **DeepSeek V4 Flash** (OpenRouter): аккуратный исполнитель и проверяющий;
+- **GLM-4.7 Flash** (OpenRouter): полезная альтернатива; нужно ограничивать домыслы;
+- **GigaChat-3-Ultra** (Сбер через `gpt2giga`): сильный и быстрый агент.
 
-## Exact Next Step
+## Точный следующий шаг
 
-Envelope v1 now validates the successful and partial legacy runs plus freshly
-reproduced correct and defective binary-audio candidates. The adapters verify
-artifact hashes, import queryable records and artifacts into MLflow, and export
-real OTLP/HTTP protobuf with correlation IDs. Usage is documented in
-[the envelope v1 guide](envelope-v1.md).
+Карточка исполнения v1 описывает успешное и частичное старые исполнения, а также
+заново полученные правильный и дефектный результаты звуковой задачи. Средства
+интеграции сверяют контрольные суммы, переносят записи и артефакты в MLflow и
+передают настоящий protobuf через OTLP/HTTP. Использование описано в
+[руководстве](envelope-v1.md).
 
-The first solver-reviewer-fixer comparison is complete. Its Russian-language
-[results](research/solver-reviewer-fixer-results-2026-08-13.ru.md) include both
-a regression from a loose review policy and an improvement from an explicit
-evidence policy. The same reviewer model produced opposite verdicts. A cheap
-programmatic citation check also caught a new error introduced by the fixer.
+Первое сравнение цепочки «исполнитель → проверяющий → исправляющий» завершено.
+[Результаты](research/solver-reviewer-fixer-results-2026-08-13.ru.md) включают
+ухудшение при расплывчатом правиле проверки и улучшение при строгом правиле
+доказательства. Одна модель-проверяющий вынесла противоположные вердикты.
+Дешёвая программная проверка ссылок обнаружила новую ошибку исправляющего.
 
-The next narrow design step is to represent stage and revision relationships
-without adding a workflow engine: link the solver output, reviewer findings,
-fixer input/output, and aggregate observations across the complete candidate.
-Then repeat the strict policy with targeted context or claim selection to test
-whether the quality gain can be retained below the measured 5.75x API-cost and
-4.39x wall-time multipliers.
+Связи между этапами и версиями результата уже добавлены без создания движка
+цепочек. [Карточка реального опыта](../experiments/solver_reviewer_fixer/strict-chain-envelope.json)
+связывает исходный документ, замечания, исправленный документ и измерения каждого
+этапа; она проверена и импортирована в MLflow.
 
-## Continuing on Another Machine
+Следующий узкий опыт — повторить строгую проверку, но передавать проверяющему
+только выбранные рискованные утверждения и относящиеся к ним фрагменты исходников.
+Нужно выяснить, можно ли сохранить улучшение качества при меньших множителях:
+сейчас полная цепочка в 5,75 раза дороже и в 4,39 раза медленнее одиночного
+исполнения.
 
-Normal design and repository work requires only cloning/pulling this small Git
-repository. Baseline validation uses Python 3 and the .NET 8 SDK:
+## Продолжение на другой машине
+
+Для обычной работы достаточно получить этот небольшой репозиторий. Основные
+проверки используют Python 3 и .NET 8 SDK:
 
 ```bash
 python3 -m unittest discover -s tests -v
 dotnet build fixture/InterleaverBench.sln -m:1
 ```
 
-Do not install the entire bake-off stack up front. The measured cold footprints
-on this host were roughly 649 MB for MLflow, 242 MB for Inspect AI, and 1.4 GB
-for Promptfoo; local model files can add many more gigabytes. These tools and
-models are not committed and are not required to read the findings or design
-the envelope. Install only MLflow when the next persistent adapter actually
-needs it; Inspect, Promptfoo, LM Studio models, and OpenCode are optional for
-repeating their respective experiments.
+Не нужно заранее устанавливать весь набор программ. На этой машине MLflow занял
+примерно 649 МБ, Inspect AI — 242 МБ, Promptfoo — 1,4 ГБ; локальные модели могут
+добавить много гигабайт. Они не входят в Git и не нужны для чтения результатов
+или проектирования карточки. MLflow устанавливается только когда нужен перенос
+данных; Inspect AI, Promptfoo, модели LM Studio и OpenCode нужны лишь для
+повторения соответствующих опытов.
 
-Temporary adapters, SQLite databases, OTLP payloads, and generated audio lived
-under `/tmp` and are intentionally absent from Git. Raw benchmark executions
-under `agent_runs/` are also ignored. Their important observations are captured
-in committed research notes; exact experimental reproduction will require new,
-deliberately maintained adapters rather than copying this machine's temporary
-environment.
+Временные средства интеграции, базы SQLite, данные OTLP и созданные звуковые
+файлы находились в `/tmp` и намеренно не включены в Git. Исходные результаты в
+`agent_runs/` также игнорируются. Важные измерения сохранены в отчётах;
+для точного воспроизведения следует повторно запускать поддерживаемые средства,
+а не копировать временное состояние машины.

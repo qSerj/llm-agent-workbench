@@ -181,6 +181,74 @@ class LegacyEnvelopeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside scale"):
             validate_envelope(invalid)
 
+    def test_validates_stage_artifact_and_dependency_links(self):
+        envelope = build_legacy_opencode_envelope(self.make_bundle())
+        envelope["stages"] = [
+            {
+                "id": "solver",
+                "role": "SOLVER",
+                "execution_id": "child:solver",
+                "depends_on": [],
+                "input_artifact_ids": ["task-prompt", "source-tree"],
+                "output_artifact_ids": ["generated-document"],
+            },
+            {
+                "id": "reviewer",
+                "role": "REVIEWER",
+                "execution_id": "child:reviewer",
+                "depends_on": ["solver"],
+                "input_artifact_ids": ["generated-document", "source-tree"],
+                "output_artifact_ids": ["grader-output"],
+            },
+        ]
+        envelope["observations"][0]["stage_id"] = "solver"
+
+        validate_envelope(envelope)
+
+    def test_rejects_stage_dependency_cycle(self):
+        envelope = build_legacy_opencode_envelope(self.make_bundle())
+        envelope["stages"] = [
+            {
+                "id": "solver",
+                "role": "SOLVER",
+                "execution_id": "child:solver",
+                "depends_on": ["reviewer"],
+                "input_artifact_ids": [],
+                "output_artifact_ids": [],
+            },
+            {
+                "id": "reviewer",
+                "role": "REVIEWER",
+                "execution_id": "child:reviewer",
+                "depends_on": ["solver"],
+                "input_artifact_ids": [],
+                "output_artifact_ids": [],
+            },
+        ]
+
+        with self.assertRaisesRegex(ValueError, "dependency cycle"):
+            validate_envelope(envelope)
+
+    def test_rejects_unknown_stage_artifact_and_observation_stage(self):
+        envelope = build_legacy_opencode_envelope(self.make_bundle())
+        envelope["stages"] = [
+            {
+                "id": "solver",
+                "role": "SOLVER",
+                "execution_id": "child:solver",
+                "depends_on": [],
+                "input_artifact_ids": ["missing"],
+                "output_artifact_ids": [],
+            }
+        ]
+        with self.assertRaisesRegex(ValueError, "unknown stage artifacts"):
+            validate_envelope(envelope)
+
+        envelope["stages"][0]["input_artifact_ids"] = []
+        envelope["observations"][0]["stage_id"] = "missing"
+        with self.assertRaisesRegex(ValueError, "unknown observation stage"):
+            validate_envelope(envelope)
+
 
 if __name__ == "__main__":
     unittest.main()

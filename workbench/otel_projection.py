@@ -26,6 +26,19 @@ def project_to_otel(envelope: dict[str, Any], tracer: Any) -> tuple[str, str]:
         "workbench.execution.timestamp_basis": envelope["lifecycle"]["timestamp_basis"],
     }
     with tracer.start_as_current_span("task.execute", attributes=attributes) as span:
+        for stage in envelope.get("stages", []):
+            with tracer.start_as_current_span(
+                f"stage.{stage['role'].lower()}",
+                attributes={
+                    "workbench.stage.id": stage["id"],
+                    "workbench.stage.role": stage["role"],
+                    "workbench.stage.execution_id": stage["execution_id"],
+                    "workbench.stage.depends_on": stage["depends_on"],
+                    "workbench.stage.input_artifact_ids": stage["input_artifact_ids"],
+                    "workbench.stage.output_artifact_ids": stage["output_artifact_ids"],
+                },
+            ):
+                pass
         for item in envelope["observations"]:
             event_attributes = {
                 "workbench.observation.name": item["name"],
@@ -35,6 +48,8 @@ def project_to_otel(envelope: dict[str, Any], tracer: Any) -> tuple[str, str]:
             value = item["value"]
             if value is not None:
                 event_attributes["workbench.observation.value"] = value
+            if "stage_id" in item:
+                event_attributes["workbench.observation.stage_id"] = item["stage_id"]
             span.add_event("workbench.observation", event_attributes)
 
         for item in envelope["artifacts"]:

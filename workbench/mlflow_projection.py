@@ -38,6 +38,15 @@ def project_to_mlflow(
     }
     run_name = f"{envelope['candidate']['id']}__{envelope['case']['id']}__r{envelope['repetition']}"
     with mlflow.start_run(run_name=run_name, tags=tags) as run:
+        for index, stage in enumerate(envelope.get("stages", [])):
+            mlflow.set_tags(
+                {
+                    f"stage.{index}.id": stage["id"],
+                    f"stage.{index}.role": stage["role"],
+                    f"stage.{index}.execution_id": stage["execution_id"],
+                    f"stage.{index}.depends_on": ",".join(stage["depends_on"]),
+                }
+            )
         mlflow.log_params(
             {
                 "task": f"{envelope['task']['id']}@{envelope['task']['version']}",
@@ -50,7 +59,10 @@ def project_to_mlflow(
         for item in envelope["observations"]:
             value = item["value"]
             if isinstance(value, (int, float)) and not isinstance(value, bool):
-                mlflow.log_metric(item["name"], value)
+                metric_name = item["name"]
+                if "stage_id" in item:
+                    metric_name = f"stage.{item['stage_id']}.{metric_name}"
+                mlflow.log_metric(metric_name, value)
 
         for evaluation in envelope["evaluations"]:
             evaluation_id = evaluation["id"]

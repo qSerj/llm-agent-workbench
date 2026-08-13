@@ -28,15 +28,28 @@ class OtelProjectionSmokeTests(unittest.TestCase):
 
     def test_projects_identity_artifacts_observations_and_evaluation(self):
         envelope = self.make_envelope()
+        envelope["stages"] = [
+            {
+                "id": "solver",
+                "role": "SOLVER",
+                "execution_id": "child:solver",
+                "depends_on": [],
+                "input_artifact_ids": ["task-prompt"],
+                "output_artifact_ids": ["generated-document"],
+            }
+        ]
 
         trace_id, span_id = project_to_otel(
             envelope, self.provider.get_tracer("workbench-test")
         )
 
         spans = self.exporter.get_finished_spans()
-        self.assertEqual(len(spans), 1)
-        span = spans[0]
+        self.assertEqual(len(spans), 2)
+        span = next(item for item in spans if item.name == "task.execute")
+        stage = next(item for item in spans if item.name == "stage.solver")
         self.assertEqual(span.name, "task.execute")
+        self.assertEqual(stage.parent.span_id, span.context.span_id)
+        self.assertEqual(stage.attributes["workbench.stage.id"], "solver")
         self.assertEqual(len(trace_id), 32)
         self.assertEqual(len(span_id), 16)
         event_names = [event.name for event in span.events]

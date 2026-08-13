@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0",
+  "execution_id": "solver-reviewer-fixer:task01:2026-08-13:strict-v2",
+  "task": {
+    "id": "repository-documentation-01",
+    "version": "sha256:7d85bfce47caf8c99079dc626d61c77eb497915de7f2fb0fb94b5bab838af0b6"
+  },
+  "case": {
+    "id": "interleaver-fixture",
+    "version": "sha256:1c16e573d420957ab46979e131d1f96f82062de5895490f934502a36f7520ed1"
+  },
+  "candidate": {
+    "id": "mimo-solver-deepseek-strict-reviewer-mimo-fixer",
+    "version": "2026-08-13-v2",
+    "parameters": {
+      "solver_model": "xiaomi/mimo-v2.5",
+      "reviewer_model": "deepseek/deepseek-v4-flash",
+      "fixer_model": "xiaomi/mimo-v2.5",
+      "provider": "openrouter"
+    }
+  },
+  "repetition": 1,
+  "lifecycle": {
+    "status": "SUCCEEDED",
+    "started_at": "2026-08-13T10:28:02.829+00:00",
+    "finished_at": "2026-08-13T10:41:21.581+00:00",
+    "timestamp_basis": "provider-event-unix-milliseconds"
+  },
+  "executor": {
+    "implementation": "manual-stage-composition",
+    "version": "2026-08-13",
+    "exit_code": 0
+  },
+  "artifacts": [
+    {
+      "id": "task-prompt",
+      "role": "INPUT",
+      "content_kind": "FILE",
+      "media_type": "text/markdown",
+      "byte_size": 465,
+      "sha256": "7d85bfce47caf8c99079dc626d61c77eb497915de7f2fb0fb94b5bab838af0b6",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "tasks/01.md" }
+    },
+    {
+      "id": "source-tree",
+      "role": "INPUT",
+      "content_kind": "DIRECTORY",
+      "media_type": "application/vnd.llm-agent-workbench.source-tree",
+      "byte_size": 3497,
+      "sha256": "1c16e573d420957ab46979e131d1f96f82062de5895490f934502a36f7520ed1",
+      "digest_method": "sha256-tree-manifest-v1",
+      "location": { "path": "fixture/src" },
+      "exclusions": ["bin", "obj"]
+    },
+    {
+      "id": "review-policy",
+      "role": "INPUT",
+      "content_kind": "FILE",
+      "media_type": "text/markdown",
+      "byte_size": 2358,
+      "sha256": "2d4833311e3f36aa3c65180f0022abdb7f1c78b398cd3695d583a0f18bb2f89a",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "experiments/solver_reviewer_fixer/reviewer-v2.md" }
+    },
+    {
+      "id": "fix-policy",
+      "role": "INPUT",
+      "content_kind": "FILE",
+      "media_type": "text/markdown",
+      "byte_size": 996,
+      "sha256": "01fb25155a8782e0456bacbcf4d8cedd6f50557ac11f8d1954e3f9313a78483d",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "experiments/solver_reviewer_fixer/fixer.md" }
+    },
+    {
+      "id": "solver-document",
+      "role": "OUTPUT",
+      "content_kind": "FILE",
+      "media_type": "text/markdown",
+      "byte_size": 5147,
+      "sha256": "aaaf7d56aa9aa1973c63cc59c261ce719471d2b33fc0e3a682b8fe2640f9cd9c",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "experiments/solver_reviewer_fixer/artifacts/solver-output.md" }
+    },
+    {
+      "id": "review-findings",
+      "role": "OUTPUT",
+      "content_kind": "FILE",
+      "media_type": "application/json",
+      "byte_size": 8069,
+      "sha256": "4077429805ee318f0550dc12eee06c76995a61627fa141d5dcc33f0deb594228",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "experiments/solver_reviewer_fixer/artifacts/review-findings-v2.json" }
+    },
+    {
+      "id": "final-document",
+      "role": "OUTPUT",
+      "content_kind": "FILE",
+      "media_type": "text/markdown",
+      "byte_size": 5638,
+      "sha256": "352f9451c0d82d5ecc818adaf3a7bffae9302e9370a1af8a89d2217b6c806e94",
+      "digest_method": "sha256-file-bytes",
+      "location": { "path": "experiments/solver_reviewer_fixer/artifacts/final-v2.md" }
+    }
+  ],
+  "stages": [
+    {
+      "id": "solver",
+      "role": "SOLVER",
+      "execution_id": "openrouter:mimo-v2.5:20260813-102802",
+      "depends_on": [],
+      "input_artifact_ids": ["task-prompt", "source-tree"],
+      "output_artifact_ids": ["solver-document"]
+    },
+    {
+      "id": "reviewer",
+      "role": "REVIEWER",
+      "execution_id": "openrouter:deepseek-v4-flash:20260813-103559",
+      "depends_on": ["solver"],
+      "input_artifact_ids": ["solver-document", "source-tree", "review-policy"],
+      "output_artifact_ids": ["review-findings"]
+    },
+    {
+      "id": "fixer",
+      "role": "FIXER",
+      "execution_id": "openrouter:mimo-v2.5:20260813-103915",
+      "depends_on": ["reviewer"],
+      "input_artifact_ids": ["solver-document", "review-findings", "source-tree", "fix-policy"],
+      "output_artifact_ids": ["final-document"]
+    }
+  ],
+  "observations": [
+    { "name": "active_wall_time", "value": 384.07476388800023, "unit": "s", "method": "sum-of-stage-monotonic-clocks" },
+    { "name": "calendar_elapsed", "value": 798.752, "unit": "s", "method": "first-to-last-provider-event" },
+    { "name": "api_cost", "value": 0.0259113792, "unit": "USD", "method": "sum-of-provider-reported-stage-costs" },
+    { "name": "tool_calls", "value": 57, "unit": "{call}", "method": "sum-of-opencode-event-counts" },
+    { "name": "failed_tool_calls", "value": 3, "unit": "{call}", "method": "sum-of-opencode-event-counts" },
+    { "name": "wall_time", "value": 87.45788739499949, "unit": "s", "method": "monotonic-clock", "stage_id": "solver" },
+    { "name": "api_cost", "value": 0.004503996, "unit": "USD", "method": "provider-reported-opencode-step-cost-sum", "stage_id": "solver" },
+    { "name": "tool_calls", "value": 19, "unit": "{call}", "method": "opencode-event-count", "stage_id": "solver" },
+    { "name": "wall_time", "value": 158.39494193400242, "unit": "s", "method": "monotonic-clock", "stage_id": "reviewer" },
+    { "name": "api_cost", "value": 0.015474592, "unit": "USD", "method": "provider-reported-opencode-step-cost-sum", "stage_id": "reviewer" },
+    { "name": "tool_calls", "value": 14, "unit": "{call}", "method": "opencode-event-count", "stage_id": "reviewer" },
+    { "name": "wall_time", "value": 138.22193455899833, "unit": "s", "method": "monotonic-clock", "stage_id": "fixer" },
+    { "name": "api_cost", "value": 0.0059327912, "unit": "USD", "method": "provider-reported-opencode-step-cost-sum", "stage_id": "fixer" },
+    { "name": "tool_calls", "value": 24, "unit": "{call}", "method": "opencode-event-count", "stage_id": "fixer" }
+  ],
+  "evaluations": [
+    {
+      "id": "strict-model-review",
+      "subject": { "kind": "ARTIFACT", "id": "solver-document" },
+      "evaluator": {
+        "source": "LLM_JUDGE",
+        "identity": "strict-reviewer",
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-flash"
+      },
+      "policy": {
+        "id": "repository-evidence-review",
+        "version": "sha256:2d4833311e3f36aa3c65180f0022abdb7f1c78b398cd3695d583a0f18bb2f89a"
+      },
+      "result": { "verdict": "FAIL" },
+      "rationale": "Seven unsupported semantic claims were recorded.",
+      "evidence_artifact_ids": ["solver-document", "review-findings", "source-tree"]
+    },
+    {
+      "id": "final-legacy-grader",
+      "subject": { "kind": "ARTIFACT", "id": "final-document" },
+      "evaluator": { "source": "CODE", "identity": "grade.py" },
+      "policy": { "id": "legacy-task-1-grader", "version": "r4.2" },
+      "result": { "verdict": "PASS" },
+      "rationale": "Deterministic score 16/16.",
+      "evidence_artifact_ids": ["final-document", "source-tree"]
+    },
+    {
+      "id": "final-citation-check",
+      "subject": { "kind": "ARTIFACT", "id": "final-document" },
+      "evaluator": { "source": "CODE", "identity": "tools/check_markdown_citations.py" },
+      "policy": { "id": "markdown-local-citations", "version": "1" },
+      "result": {
+        "verdict": "PASS",
+        "checks": [
+          { "id": "simple-profile-source", "outcome": "PASS" },
+          { "id": "table-profile-source", "outcome": "PASS" },
+          { "id": "usage-source", "outcome": "PASS" }
+        ]
+      },
+      "rationale": "All three local path-and-line citations exist.",
+      "evidence_artifact_ids": ["final-document", "source-tree"]
+    }
+  ],
+  "correlations": []
+}
