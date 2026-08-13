@@ -54,6 +54,8 @@ python3 examples/audio_conversion/run.py --output /tmp/audio-experiment
 OpenTelemetry по [руководству](docs/envelope-v1.md).
 
 Текущее положение описано в [CURRENT_STATE.md](docs/CURRENT_STATE.md), замысел —
-в [VISION.md](VISION.md), термины — в [словаре](docs/GLOSSARY.ru.md). Исторический
-OpenCode/.NET-стенд не участвует в актуальной архитектуре; он сохранён в
+в [VISION.md](VISION.md), а черновики описания задач — в
+[проектировании первого этапа](docs/design/stage-1/README.md). Термины собраны в
+[словаре](docs/GLOSSARY.ru.md). Исторический OpenCode/.NET-стенд не участвует в
+актуальной архитектуре; он сохранён в
 [`archive/prototype-r4.2/`](archive/prototype-r4.2/README.md).
