@@ -29,6 +29,13 @@ Hands-on experiments have covered a successful OpenCode run, a partial failed
 run, real OTLP/HTTP protobuf export, and an audio task with binary WAV/FLAC
 artifacts produced by ordinary programs. The details and measurements are in
 [the composition results](research/composition-results-2026-08-12.md).
+Earlier model runs and their preliminary role assessments are preserved in
+[the model observations](research/model-observations-before-workbench.md).
+
+On the current work machine, the GTX 960 2 GB is not a practical LLM accelerator
+even when its desktop driver is active. Prefer OpenRouter and GigaChat for
+interactive experiments. Treat local GPT-OSS/Nemotron runs as deliberate
+privacy, fallback, or unattended-batch cases rather than the default path.
 
 ## Exact Next Step
 
