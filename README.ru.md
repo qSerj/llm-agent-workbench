@@ -88,9 +88,11 @@ runner сохраняет наблюдаемые step-метрики, а не п
 телеметрии, human review и нетекстовых артефактах. Следующий этап — первый
 сравнительный `solver → reviewer → fixer` эксперимент.
 
-См. [VISION.md](VISION.md), [протокол bake-off](docs/research/bakeoff-protocol.md),
+См. [словарь проекта](docs/GLOSSARY.ru.md), [VISION.md](VISION.md),
+[протокол bake-off](docs/research/bakeoff-protocol.md),
 [обзор инструментов](docs/research/tool-landscape.md),
 [импорт реального OpenCode-запуска](docs/research/legacy-opencode-results-2026-08-12.md),
 [формат execution envelope v1](docs/envelope-v1.md),
+[результаты первой цепочки обработки](docs/research/solver-reviewer-fixer-results-2026-08-13.ru.md),
 а также [заметки об orchestration](docs/orchestration.md).
 Правила разработки описаны в [AGENTS.md](AGENTS.md). Лицензия — [MIT](LICENSE).

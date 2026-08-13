@@ -60,11 +60,18 @@ artifact hashes, import queryable records and artifacts into MLflow, and export
 real OTLP/HTTP protobuf with correlation IDs. Usage is documented in
 [the envelope v1 guide](envelope-v1.md).
 
-The next experiment is the first `solver → reviewer → fixer` comparison,
-initially targeting the fabricated-example failure class. Compare it against a
-single solver and retain every stage, revision, cost, and failed attempt in the
-same experiment. Do not add a workflow engine or UI; economical multi-agent
-pipelines and context/model routing expand only from measured results.
+The first solver-reviewer-fixer comparison is complete. Its Russian-language
+[results](research/solver-reviewer-fixer-results-2026-08-13.ru.md) include both
+a regression from a loose review policy and an improvement from an explicit
+evidence policy. The same reviewer model produced opposite verdicts. A cheap
+programmatic citation check also caught a new error introduced by the fixer.
+
+The next narrow design step is to represent stage and revision relationships
+without adding a workflow engine: link the solver output, reviewer findings,
+fixer input/output, and aggregate observations across the complete candidate.
+Then repeat the strict policy with targeted context or claim selection to test
+whether the quality gain can be retained below the measured 5.75x API-cost and
+4.39x wall-time multipliers.
 
 ## Continuing on Another Machine
 

@@ -1,0 +1,51 @@
+{
+  "experiment": "solver-reviewer-fixer-task01",
+  "date": "2026-08-13",
+  "shared_solver": {
+    "model": "xiaomi/mimo-v2.5",
+    "provider": "openrouter",
+    "wall_seconds": 87.45788739499949,
+    "tool_calls": 19,
+    "failed_tool_calls": 1,
+    "reported_cost_usd": 0.004503996,
+    "output_sha256": "aaaf7d56aa9aa1973c63cc59c261ce719471d2b33fc0e3a682b8fe2640f9cd9c",
+    "legacy_grade": "16/16",
+    "citation_verdict": "PASS"
+  },
+  "chain_v1": {
+    "review_policy": "reviewer.md",
+    "reviewer_model": "deepseek/deepseek-v4-flash",
+    "review_verdict": "PASS",
+    "finding_count": 0,
+    "review_findings_sha256": "b1d007de5cc6fced298a3ff996b17fff2330d028ae5bba0128e6180448a24b41",
+    "final_output_sha256": "4aafa8e0af41d3d177a352117b52f9842a78bbe70a8eeed6d5f67a69e115748e",
+    "wall_seconds": 210.72976509999899,
+    "tool_calls": 42,
+    "failed_tool_calls": 2,
+    "reported_cost_usd": 0.0164015264,
+    "legacy_grade": "16/16",
+    "citation_verdict": "FAIL",
+    "result": "REGRESSION"
+  },
+  "chain_v2": {
+    "review_policy": "reviewer-v2.md",
+    "reviewer_model": "deepseek/deepseek-v4-flash",
+    "review_verdict": "FAIL",
+    "finding_count": 7,
+    "review_findings_sha256": "4077429805ee318f0550dc12eee06c76995a61627fa141d5dcc33f0deb594228",
+    "final_output_sha256": "352f9451c0d82d5ecc818adaf3a7bffae9302e9370a1af8a89d2217b6c806e94",
+    "wall_seconds": 384.07476388800023,
+    "tool_calls": 57,
+    "failed_tool_calls": 3,
+    "reported_cost_usd": 0.0259113792,
+    "legacy_grade": "16/16",
+    "citation_verdict": "PASS",
+    "result": "IMPROVED"
+  },
+  "aborted_attempt": {
+    "reason": "execution-shell-time-limit",
+    "completed_model_steps": 0,
+    "reported_cost_usd": null,
+    "note": "The provider may have processed work, but no completed step or cost event was received."
+  }
+}

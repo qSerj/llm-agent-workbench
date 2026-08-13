@@ -5,6 +5,11 @@
 This repository preserves an OpenCode/.NET benchmark and develops a small,
 domain-neutral execution-envelope composition layer.
 
+User-facing discussion and new explanatory documentation should be in Russian.
+Prefer the Russian terms in `docs/GLOSSARY.ru.md`; introduce an English term in
+parentheses only when it helps readers recognize source documentation. Keep
+program, file, API-field, and code identifiers unchanged.
+
 - `run_agent.py` configures providers, creates isolated workspaces, runs tasks, and records usage and cost data.
 - `grade.py` scores a completed task workspace.
 - `workbench/` validates execution envelopes and projects them to optional backends.
