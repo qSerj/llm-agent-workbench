@@ -1,21 +1,15 @@
-"""Build execution envelope v1 records from legacy OpenCode run bundles."""
+"""Validate execution cards and verify their local artifacts."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 
 SCHEMA_VERSION = "1.0"
 SCHEMA_PATH = Path(__file__).parents[1] / "schemas" / "execution-envelope-v1.schema.json"
-LEGACY_OUTPUTS = {
-    1: "docs/01-interleavers.md",
-    2: "docs/02-apply-behavior.md",
-    3: "docs/03-public-api.md",
-}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -120,193 +114,6 @@ def verify_artifacts(envelope: dict[str, Any], bundle_root: Path) -> None:
             actual_digest, actual_size = directory_digest(candidate, exclusions)
         if actual_size != item["byte_size"] or actual_digest != item["sha256"]:
             raise ValueError(f"artifact content mismatch: {item['id']}")
-
-
-def observation(name: str, value: Any, unit: str, method: str) -> dict[str, Any]:
-    return {"name": name, "value": value, "unit": unit, "method": method}
-
-
-def _lifecycle(timestamp: str, wall_seconds: float, status: str) -> dict[str, Any]:
-    # Legacy timestamps have no UTC offset. Preserve that limitation explicitly
-    # instead of assigning the importing machine's current timezone.
-    started = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
-    finished = started + timedelta(seconds=wall_seconds)
-    return {
-        "status": status,
-        "started_at": started.isoformat(timespec="seconds"),
-        "finished_at": finished.isoformat(timespec="milliseconds"),
-        "timestamp_basis": "legacy-local-time-offset-unknown",
-    }
-
-
-def _code_evaluation(grade: dict[str, Any]) -> dict[str, Any]:
-    checks = [
-        {
-            "id": item["name"],
-            "outcome": "PASS" if item["ok"] else "FAIL",
-            "value": item["points"],
-            "maximum": item["max_points"],
-        }
-        for item in grade["checks"]
-    ]
-    return {
-        "id": "deterministic-grader",
-        "subject": {"kind": "EXECUTION", "id": "self"},
-        "evaluator": {"source": "CODE", "identity": "grade.py"},
-        "policy": {"id": f"legacy-task-{grade['task']}-grader", "version": "r4.2"},
-        "result": {
-            "verdict": "PASS" if grade["score"] == grade["max_score"] else "FAIL",
-            "checks": checks,
-        },
-        "rationale": f"Deterministic score {grade['score']}/{grade['max_score']}.",
-        "evidence_artifact_ids": ["grader-output"],
-    }
-
-
-def build_legacy_opencode_envelope(
-    task_directory: Path,
-    human_evaluation_path: Path | None = None,
-) -> dict[str, Any]:
-    """Convert one task directory from the r4.2 runner into envelope v1."""
-    task_directory = task_directory.resolve()
-    run_directory = task_directory.parent
-    if not task_directory.name.startswith("task"):
-        raise ValueError("task directory name must look like task01")
-
-    metadata = read_json(run_directory / "metadata.json")
-    exit_info = read_json(task_directory / "exit.json")
-    grade = read_json(task_directory / "grade.json")
-    task_number = int(task_directory.name.removeprefix("task"))
-    workspace = task_directory / "workspace"
-    try:
-        output_path = workspace / LEGACY_OUTPUTS[task_number]
-    except KeyError as error:
-        raise ValueError(f"unsupported legacy task number: {task_number}") from error
-
-    bundle_root = run_directory
-    prompt_path = task_directory / "prompt.md"
-    trace_path = task_directory / "opencode.jsonl"
-    grade_path = task_directory / "grade.json"
-    effective_model = (task_directory / "effective_model.txt").read_text(
-        encoding="utf-8"
-    ).strip()
-
-    output_exists = output_path.is_file()
-    if exit_info["returncode"] == 0 and output_exists:
-        status = "SUCCEEDED"
-    elif output_exists and output_path.stat().st_size > 0:
-        status = "PARTIAL"
-    else:
-        status = "FAILED"
-    artifacts = [
-        file_artifact("task-prompt", "INPUT", prompt_path, bundle_root, "text/markdown"),
-        directory_artifact(
-            "source-tree",
-            "INPUT",
-            workspace / "src",
-            bundle_root,
-            "application/vnd.llm-agent-workbench.source-tree",
-            frozenset({"bin", "obj"}),
-        ),
-        # The historical runner merged stdout and stderr, so this is not guaranteed
-        # to be valid NDJSON even though its filename ends in .jsonl.
-        file_artifact("raw-opencode-stream", "LOG", trace_path, bundle_root, "text/plain"),
-        file_artifact("grader-output", "EVIDENCE", grade_path, bundle_root, "application/json"),
-    ]
-    if output_exists:
-        artifacts.insert(
-            2,
-            file_artifact(
-                "generated-document", "OUTPUT", output_path, bundle_root, "text/markdown"
-            ),
-        )
-
-    observations = [
-        observation("wall_time", exit_info["wall_seconds"], "s", "monotonic-clock"),
-        observation("tool_calls", exit_info["tool_calls"], "{call}", "opencode-event-count"),
-        observation(
-            "failed_tool_calls",
-            exit_info["failed_tool_calls"],
-            "{call}",
-            "opencode-event-count",
-        ),
-    ]
-    tokens = exit_info.get("summed_step_tokens")
-    if tokens is not None:
-        for token_kind in ("input", "output", "reasoning", "total"):
-            observations.append(
-                observation(
-                    f"tokens.{token_kind}",
-                    tokens[token_kind],
-                    "{token}",
-                    "sum-of-opencode-step-finish-events",
-                )
-            )
-    if exit_info.get("total_reported_cost_usd") is not None:
-        observations.append(
-            observation(
-                "api_cost",
-                exit_info["total_reported_cost_usd"],
-                "USD",
-                "provider-reported-opencode-step-cost-sum",
-            )
-        )
-    if exit_info.get("estimated_kwh") is not None:
-        observations.append(
-            observation(
-                "local_energy",
-                exit_info["estimated_kwh"],
-                "kWh",
-                "wall-time-times-user-supplied-average-power",
-            )
-        )
-
-    evaluations = [_code_evaluation(grade)]
-    if human_evaluation_path is not None:
-        if not output_exists:
-            raise ValueError("human evaluation cannot attach: output artifact is missing")
-        human_evaluation = read_json(human_evaluation_path)
-        expected_hash = human_evaluation.pop("subject_sha256")
-        if expected_hash != sha256(output_path):
-            raise ValueError("human evaluation subject hash does not match output artifact")
-        evaluations.append(human_evaluation)
-
-    prompt_hash = sha256(prompt_path)
-    source_artifact = next(item for item in artifacts if item["id"] == "source-tree")
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "execution_id": f"legacy-opencode:{run_directory.name}:{task_directory.name}",
-        "task": {
-            "id": f"repository-documentation-{task_number:02d}",
-            "version": f"sha256:{prompt_hash}",
-        },
-        "case": {
-            "id": "interleaver-fixture",
-            "version": f"sha256:{source_artifact['sha256']}",
-            "parameters": {"legacy_fixture_version": "r4.2"},
-        },
-        "candidate": {
-            "id": "legacy-opencode-agent",
-            "version": metadata["runner_version"],
-            "parameters": {
-                "provider": metadata["provider"],
-                "model": metadata["model"],
-                "effective_model": effective_model,
-                "context_tokens": metadata["context"],
-            },
-        },
-        "repetition": 1,
-        "lifecycle": _lifecycle(metadata["timestamp"], exit_info["wall_seconds"], status),
-        "executor": {
-            "implementation": "run_agent.py",
-            "version": metadata["runner_version"],
-            "exit_code": exit_info["returncode"],
-        },
-        "artifacts": artifacts,
-        "observations": observations,
-        "evaluations": evaluations,
-        "correlations": [],
-    }
 
 
 def validate_envelope(envelope: dict[str, Any]) -> None:

@@ -11,14 +11,12 @@
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-envelope.txt
-.venv/bin/python tools/legacy_opencode_to_envelope.py \
-  agent_runs/<run>/task01 \
-  --output /tmp/execution-envelope.json
 ```
 
-При преобразовании соответствующего старого исполнения можно добавить
-`--human-evaluation evaluations/legacy-task01-qserj-2026-08-13.json`.
-Перед присоединением ручной оценки программа сверит SHA-256 результата.
+Готовая карточка создаётся исполнителем или узким переходником конкретного
+исполнителя. Эталонный рабочий пример создаёт
+`examples/audio_conversion/run.py`. Универсального движка запуска в проекте
+пока нет.
 
 ## Смысл полей
 
@@ -40,7 +38,8 @@ python3 -m venv .venv
 входных и выходных артефактов. Наблюдение может ссылаться на `stage_id`. Так
 описываются состав цепочки и происхождение версий, но карточка не запускает
 этапы и не превращает лабораторию в движок цепочек. См.
-[проверенный пример «исполнитель → проверяющий → исправляющий»](../experiments/solver_reviewer_fixer/strict-chain-envelope.json).
+исторический проверенный пример в
+[`archive/prototype-r4.2/experiments/solver_reviewer_fixer/`](../archive/prototype-r4.2/experiments/solver_reviewer_fixer/strict-chain-envelope.json).
 
 ## Необязательный перенос данных
 

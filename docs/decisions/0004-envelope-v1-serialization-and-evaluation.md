@@ -60,7 +60,8 @@ deciding how every future task is authored. MLflow remains the canonical
 queryable record and artifact store; OTLP remains a telemetry projection.
 Their identifiers do not replace the envelope's identity.
 
-The v1 schema should be tested first against the existing successful run, the
-partial failure, and both audio candidates. A later
-`solver → reviewer → fixer` experiment will test whether evaluations and
-revision lineage are sufficient before adding pipeline-specific concepts.
+The v1 schema was tested against successful, partial, and failed executions,
+both audio candidates, and a real three-stage agent experiment. Optional
+`stages` now records dependencies and artifact lineage without scheduling work.
+The historical agent material and its adapter have since moved to
+`archive/prototype-r4.2/`; the active core remains executor-neutral.

@@ -2,57 +2,56 @@
 
 ## Project Structure & Module Organization
 
-This repository preserves an OpenCode/.NET benchmark and develops a small,
-domain-neutral execution-envelope composition layer.
+This repository develops a domain-neutral execution-card layer for comparing
+complete task-solving methods. Historical benchmark code lives only under
+`archive/prototype-r4.2/` and must not shape active modules.
 
 User-facing discussion and new explanatory documentation should be in Russian.
-Prefer the Russian terms in `docs/GLOSSARY.ru.md`; introduce an English term in
-parentheses only when it helps readers recognize source documentation. Keep
-program, file, API-field, and code identifiers unchanged.
+Prefer terms from `docs/GLOSSARY.ru.md`; keep program, file, API-field, and code
+identifiers unchanged.
 
-- `run_agent.py` configures providers, creates isolated workspaces, runs tasks, and records usage and cost data.
-- `grade.py` scores a completed task workspace.
-- `workbench/` validates execution envelopes and projects them to optional backends.
 - `schemas/` contains versioned JSON Schema contracts; keep v1 backward-compatible.
-- `tools/` contains narrow import/export CLIs; `examples/` proves non-coding artifact flows.
-- `evaluations/` contains versioned assessments bound to artifact hashes.
-- `tasks/01.md` through `tasks/03.md` contain the benchmark prompts; keep numbering zero-padded.
-- `fixture/` is the source template copied for each run. Its C# projects live under `fixture/src/`, with the solution at `fixture/InterleaverBench.sln`.
-- `tests/` contains offline unit tests; `.github/workflows/ci.yml` runs them and builds the fixture.
-- `providers.example.json` documents secret-free provider configuration.
-- `agent_runs/` is generated output. Do not treat run artifacts as source files.
+- `workbench/` validates cards, verifies artifacts, and projects data externally.
+- `tools/` contains narrow MLflow and OpenTelemetry command-line integrations.
+- `examples/` contains reproducible, domain-neutral execution examples.
+- `tests/` contains offline tests for the active core.
+- `docs/` contains current decisions, state, and terminology.
+- `archive/` is read-only research history; do not extend it with new features.
 
 ## Build, Test, and Development Commands
 
-Use Python 3 and the .NET 8 SDK from the repository root:
+Use Python 3 from the repository root:
 
 ```bash
-python3 run_agent.py --version
 python3 -m pip install -r requirements-envelope.txt
 python3 -m unittest discover -s tests -v
-dotnet build fixture/InterleaverBench.sln -m:1
-python3 grade.py agent_runs/<run>/task01/workspace --task 1
+python3 -m py_compile workbench/*.py tools/*.py examples/audio_conversion/run.py
+python3 examples/audio_conversion/run.py --output /tmp/audio-experiment
 ```
 
-The first command confirms the runner is usable; the install supplies standard
-JSON Schema validation; `unittest` checks runner and envelope behavior;
-`dotnet build` validates the fixture; and `grade.py` checks one completed
-workspace. A full benchmark requires OpenCode plus a configured provider.
+The first command installs JSON Schema validation. The next two validate the
+active core. The optional audio example requires `ffmpeg` and `ffprobe` and
+produces execution cards outside the repository.
 
 ## Coding Style & Naming Conventions
 
-Use four-space indentation and UTF-8. In Python, follow standard library-oriented PEP 8: `snake_case` for functions and variables, `UPPER_CASE` for constants, and descriptive `argparse` option names. Prefer `pathlib.Path`, type hints for public helpers, and explicit subprocess argument lists.
-
-For C#, retain nullable reference types and implicit usings. Use PascalCase for public types and members, `_camelCase` for private fields, and place code in the existing `Interleaver.Core` or `Interleaver.Transport` namespace. Format JSON with two-space indentation.
+Use four-space indentation and UTF-8. Follow PEP 8: `snake_case` for functions
+and variables, `UPPER_CASE` for constants, type hints for public helpers,
+`pathlib.Path` for paths, and explicit subprocess argument lists. Format JSON
+with two-space indentation. Preserve unknown measurements as absent or `null`;
+never silently turn them into zero.
 
 ## Testing Guidelines
 
-Tests use the standard-library `unittest` framework and follow `tests/test_*.py`
-naming. Envelope changes must cover successful, partial, and failed executions,
-artifact tampering, and both text and binary artifacts. Validate projections
-against disposable local backends. Do not commit generated MLflow databases,
-audio outputs, or benchmark runs.
+Tests use `unittest` and follow `tests/test_*.py`. Cover schema validation,
+semantic links, artifact tampering, stage relationships, text and binary
+artifacts, and external projections where relevant. Use disposable temporary
+directories and local backends. Do not commit generated MLflow databases,
+media outputs, traces, credentials, or model files.
 
 ## Commit & Pull Request Guidelines
 
-Use short, imperative commit subjects such as `Add partial cost reporting`, and keep unrelated runner, fixture, and documentation changes separate. Pull requests should explain the behavior change, list validation commands, identify affected providers or tasks, and include a sample summary or grading output when results change. Never commit API keys, generated `opencode.json` credentials, or large `agent_runs/` directories.
+Use short imperative subjects such as `Separate historical benchmark`. Keep
+schema, integration, example, and documentation changes logically focused.
+Pull requests should explain the changed boundary, list validation commands,
+and include a small example card or projection result when behavior changes.

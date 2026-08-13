@@ -1,4 +1,5 @@
-# Benchmark output and local provider configuration
+# Generated experiments and local configuration
+executions/
 agent_runs/
 mlruns/
 transfer-kit/
@@ -23,6 +24,8 @@ venv/
 **/obj/
 
 # Editors and operating systems
+.obsidian/
+.serena/
 .idea/
 .vscode/
 *.swp
