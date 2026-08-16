@@ -1,0 +1,4 @@
+# Ruff is normally installed as a standalone binary (see CLAUDE.md); this file
+# is for environments that do have pip, such as CI.
+-r requirements-lab.txt
+ruff>=0.16,<1

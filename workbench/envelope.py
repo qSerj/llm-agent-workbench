@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 SCHEMA_VERSION = "1.0"
 SCHEMA_PATH = Path(__file__).parents[1] / "schemas" / "execution-envelope-v1.schema.json"
 

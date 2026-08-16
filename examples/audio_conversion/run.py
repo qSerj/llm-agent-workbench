@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -55,11 +55,11 @@ def build_candidate(bundle: Path, input_path: Path, candidate_id: str, correct: 
         command += ["-t", "1"]
     command.append(str(output))
 
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     before = time.monotonic()
     result = run(command, log)
     wall_seconds = time.monotonic() - before
-    finished = datetime.now(timezone.utc)
+    finished = datetime.now(UTC)
 
     probe_result = probe(output)
     probe_path = directory / "ffprobe.json"
@@ -107,7 +107,12 @@ def build_candidate(bundle: Path, input_path: Path, candidate_id: str, correct: 
         ],
         "observations": [
             {"name": "wall_time", "value": wall_seconds, "unit": "s", "method": "monotonic-clock"},
-            {"name": "output_bytes", "value": output.stat().st_size, "unit": "By", "method": "filesystem-stat"},
+            {
+                "name": "output_bytes",
+                "value": output.stat().st_size,
+                "unit": "By",
+                "method": "filesystem-stat",
+            },
         ],
         "evaluations": [
             {

@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from test_envelope import make_envelope
+
 from workbench.otel_projection import project_to_otel
 
 

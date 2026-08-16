@@ -1,0 +1,54 @@
+# Ruff configuration for the active core.
+# Style rules mirror AGENTS.md; archive/ is read-only history and is excluded.
+
+target-version = "py311"
+line-length = 100
+indent-width = 4
+
+exclude = [
+    "archive",
+    "fixture",
+    ".research-env",
+    ".promptfoo-env",
+    ".promptfoo-data",
+    "transfer-kit",
+    "agent_runs",
+    "mlruns",
+    "executions",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "SIM",  # simplification
+    "PTH",  # enforce pathlib.Path over os.path (AGENTS.md)
+    "RUF",
+]
+ignore = [
+    # User-facing strings are Russian by policy, so Cyrillic letters that look
+    # like Latin ones are intended, not a homoglyph mistake.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[lint.per-file-ignores]
+# Tools, examples, tests, and the shell insert the repository root on sys.path
+# before importing workbench, because the project is not installable.
+"tools/*.py" = ["E402"]
+"examples/*/*.py" = ["E402"]
+"tests/*.py" = ["E402"]
+"ui/*.py" = ["E402"]
+
+[lint.pydocstyle]
+convention = "pep257"
+
+[format]
+indent-style = "space"
+quote-style = "double"
+line-ending = "lf"

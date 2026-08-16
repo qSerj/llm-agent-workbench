@@ -19,7 +19,9 @@ def project_to_mlflow(
     try:
         import mlflow
     except ImportError as error:
-        raise RuntimeError("MLflow projection requires the optional research environment") from error
+        raise RuntimeError(
+            "MLflow projection requires the optional research environment"
+        ) from error
 
     validate_envelope(envelope)
     verify_artifacts(envelope, bundle_root)
