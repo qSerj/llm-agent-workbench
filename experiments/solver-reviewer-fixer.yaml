@@ -1,0 +1,56 @@
+# Воспроизведение опыта от 2026-08-13: сравнение одиночного исполнителя и двух
+# цепочек на задаче документирования репозитория.
+#
+# Эталонные числа для сверки лежат в
+# archive/prototype-r4.2/experiments/solver_reviewer_fixer/results-2026-08-13.json
+
+id: solver-reviewer-fixer-task01
+question: >-
+  Устраняет ли недорогая итеративная цепочка фактические ошибки лучше одиночного
+  исполнителя, и какова цена улучшения по времени, вызовам инструментов и
+  стоимости API?
+
+workspace: archive/prototype-r4.2/fixture
+task: task-01-repository-discovery
+case: interleaver-fixture
+
+evaluate:
+  citations: docs/01-interleavers.md
+
+candidates:
+  - id: single
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: archive/prototype-r4.2/tasks/01.md
+        allow_edit: [docs/01-interleavers.md]
+
+  - id: chain-v1
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: archive/prototype-r4.2/tasks/01.md
+        allow_edit: [docs/01-interleavers.md]
+      - role: REVIEWER
+        model: deepseek/deepseek-v4-flash
+        prompt: archive/prototype-r4.2/experiments/solver_reviewer_fixer/reviewer.md
+        allow_edit: [docs/review-findings.json]
+      - role: FIXER
+        model: xiaomi/mimo-v2.5
+        prompt: archive/prototype-r4.2/experiments/solver_reviewer_fixer/fixer.md
+        allow_edit: [docs/01-interleavers.md]
+
+  - id: chain-v2
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: archive/prototype-r4.2/tasks/01.md
+        allow_edit: [docs/01-interleavers.md]
+      - role: REVIEWER
+        model: deepseek/deepseek-v4-flash
+        prompt: archive/prototype-r4.2/experiments/solver_reviewer_fixer/reviewer-v2.md
+        allow_edit: [docs/review-findings.json]
+      - role: FIXER
+        model: xiaomi/mimo-v2.5
+        prompt: archive/prototype-r4.2/experiments/solver_reviewer_fixer/fixer.md
+        allow_edit: [docs/01-interleavers.md]

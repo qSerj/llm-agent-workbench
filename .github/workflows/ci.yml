@@ -22,8 +22,8 @@ jobs:
       - name: Check Python syntax
         run: python -m py_compile workbench/*.py tools/*.py examples/audio_conversion/run.py tests/*.py
 
-      - name: Install envelope validator
-        run: python -m pip install -r requirements-envelope.txt
+      - name: Install lab dependencies
+        run: python -m pip install -r requirements-lab.txt
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
