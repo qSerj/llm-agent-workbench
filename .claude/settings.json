@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f; case \"$f\" in *.py) err=$(python3 -m py_compile \"$f\" 2>&1) || jq -n --arg e \"$err\" '{hookSpecificOutput:{hookEventName:\"PostToolUse\",additionalContext:(\"py_compile failed:\\n\" + $e)}}';; esac; } || true",
+            "timeout": 30,
+            "statusMessage": "Byte-compiling edited Python file..."
+          }
+        ]
+      }
+    ]
+  }
+}
