@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Запуск {{ job.id }}{% endblock %}
+{% block content %}
+{% if job.running %}<meta http-equiv="refresh" content="4">{% endif %}
+
+<h1>Запуск {{ job.experiment }}</h1>
+<p class="question">
+  Начат {{ job.started_at }} ·
+  способы: {{ job.candidates | join(", ") if job.candidates else "все" }} ·
+  {% if job.running %}<span class="running">идёт, страница обновляется сама</span>
+  {% else %}завершён с кодом {{ job.exit_code }}{% endif %}
+</p>
+
+<div class="card">
+  <h3 style="margin-top:0">Журнал</h3>
+  <pre>{{ job.tail() }}</pre>
+</div>
+
+{% if not job.running %}
+<p class="note"><a href="/">← к списку прогонов</a> · <a href="/compare">сравнить →</a></p>
+{% endif %}
+{% endblock %}

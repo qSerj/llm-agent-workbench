@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Лаборатория{% endblock %}</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --good: #0ca30c;
+  --critical: #d03b3b;
+  --warning: #fab219;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0 0 4rem;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 980px; margin: 0 auto; padding: 0 1.25rem; }
+header.top {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+}
+header.top .inner {
+  max-width: 980px; margin: 0 auto; padding: 0.9rem 1.25rem;
+  display: flex; gap: 1.25rem; align-items: baseline;
+}
+header.top a { color: var(--text-secondary); text-decoration: none; }
+header.top a:hover { color: var(--text-primary); }
+header.top .brand { font-weight: 650; color: var(--text-primary); }
+h1 { font-size: 1.4rem; margin: 0 0 0.35rem; }
+h2 { font-size: 1.05rem; margin: 2rem 0 0.75rem; }
+h3 { font-size: 0.95rem; margin: 1.5rem 0 0.5rem; color: var(--text-secondary); }
+.question {
+  color: var(--text-secondary); margin: 0 0 1.5rem; max-width: 68ch;
+}
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.15rem; margin-bottom: 1rem;
+}
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
+th { color: var(--text-secondary); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: none; }
+a { color: var(--series-1); }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+pre {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.75rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.45;
+  max-height: 26rem;
+}
+.chart-wrap { overflow-x: auto; }
+svg.chart { width: 100%; height: auto; min-width: 520px; display: block; }
+svg.chart .grid { stroke: var(--grid); stroke-width: 1; }
+svg.chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg.chart .unit { fill: var(--muted); font-size: 11px; }
+svg.chart .row-label { fill: var(--text-secondary); font-size: 12px; }
+svg.chart .total { fill: var(--text-primary); font-size: 12px; font-variant-numeric: tabular-nums; }
+svg.chart .unknown { fill: var(--muted); font-size: 12px; font-style: italic; }
+svg.chart .series-1 { fill: var(--series-1); }
+svg.chart .series-2 { fill: var(--series-2); }
+svg.chart .series-3 { fill: var(--series-3); }
+svg.chart .series-4 { fill: var(--series-4); }
+ul.legend {
+  list-style: none; display: flex; flex-wrap: wrap; gap: 1rem;
+  margin: 0.25rem 0 0.75rem; padding: 0; font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+ul.legend li { display: flex; align-items: center; gap: 0.4rem; }
+.swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.swatch.series-1 { background: var(--series-1); }
+.swatch.series-2 { background: var(--series-2); }
+.swatch.series-3 { background: var(--series-3); }
+.swatch.series-4 { background: var(--series-4); }
+.verdict { font-weight: 600; white-space: nowrap; }
+.verdict.pass { color: var(--good); }
+.verdict.fail { color: var(--critical); }
+.verdict.undetermined { color: var(--text-secondary); }
+.unknown-cell { color: var(--muted); }
+.chain { color: var(--text-secondary); font-size: 0.85rem; }
+form.launch { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+select, input[type=text], button {
+  font: inherit; padding: 0.4rem 0.6rem; border-radius: 6px;
+  border: 1px solid var(--baseline); background: var(--surface);
+  color: var(--text-primary);
+}
+button { cursor: pointer; font-weight: 600; }
+button:hover { border-color: var(--series-1); }
+.empty { color: var(--muted); }
+.note { color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; }
+.running { color: var(--warning); font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <a class="brand" href="/">Лаборатория</a>
+    <a href="/compare">Сравнение</a>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

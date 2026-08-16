@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ run.candidate_id }}{% endblock %}
+{% block content %}
+
+<h1>{{ run.candidate_id }}·r{{ run.repetition }}</h1>
+<p class="question">
+  {{ run.experiment_id }} · {{ run.status }} · начат {{ run.started_at }}
+</p>
+
+<div class="card">
+  <table>
+    <tbody>
+      <tr><th>Задача</th><td>{{ run.envelope.task.id }} (версия {{ run.envelope.task.version }})</td></tr>
+      <tr><th>Пример</th><td>{{ run.envelope.case.id }} (версия {{ run.envelope.case.version }})</td></tr>
+      <tr><th>Исполнитель</th><td>{{ run.envelope.executor.implementation }} · {{ run.envelope.executor.version }}</td></tr>
+      <tr><th>Время</th><td class="num">{% if run.wall_time is none %}<span class="unknown-cell">неизвестно</span>
+          {% else %}{{ "%.1f"|format(run.wall_time) }} с{% endif %}</td></tr>
+      <tr><th>Стоимость</th><td class="num">{% if run.api_cost is none %}<span class="unknown-cell">неизвестна</span>
+          {% else %}${{ "%.6f"|format(run.api_cost) }}{% endif %}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Этапы</h2>
+{{ charts.legend | safe }}
+<div class="card">
+  <div class="chart-wrap">{{ charts.time | safe }}</div>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Этап</th><th>Роль</th><th>Зависит от</th>
+        <th class="num">Время, с</th><th class="num">Цена, $</th>
+        <th class="num">Вызовов</th><th class="num">Ошибочных</th><th class="num">Токенов</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for stage in run.stages %}
+      <tr>
+        <td>{{ stage.id }}</td>
+        <td><span class="swatch series-{{ stage.slot }}"></span> {{ stage.role }}</td>
+        <td class="chain">{{ stage.depends_on | join(", ") if stage.depends_on else "—" }}</td>
+        <td class="num">{% if stage.wall_time is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ "%.1f"|format(stage.wall_time) }}{% endif %}</td>
+        <td class="num">{% if stage.api_cost is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ "%.6f"|format(stage.api_cost) }}{% endif %}</td>
+        <td class="num">{% if stage.tool_calls is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ stage.tool_calls }}{% endif %}</td>
+        <td class="num">{% if stage.failed_tool_calls is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ stage.failed_tool_calls }}{% endif %}</td>
+        <td class="num">{% if stage.total_tokens is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ stage.total_tokens }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if run.envelope.evaluations %}
+<h2>Оценки</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Оценка</th><th>Источник</th><th>Вердикт</th><th>Обоснование</th></tr></thead>
+    <tbody>
+    {% for evaluation in run.envelope.evaluations %}
+      <tr>
+        <td>{{ evaluation.id }}</td>
+        <td>{{ evaluation.evaluator.source }}</td>
+        <td><span class="verdict {{ evaluation.result.verdict | lower }}">{{ evaluation.result.verdict }}</span></td>
+        <td>{{ evaluation.rationale }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% for evaluation in run.envelope.evaluations %}
+    {% if evaluation.result.checks %}
+    <h3>{{ evaluation.id }}: проверки</h3>
+    <table>
+      <thead><tr><th>Проверка</th><th>Итог</th><th>Пояснение</th></tr></thead>
+      <tbody>
+      {% for check in evaluation.result.checks %}
+        <tr>
+          <td><code>{{ check.id }}</code></td>
+          <td><span class="verdict {{ check.outcome | lower }}">{{ check.outcome }}</span></td>
+          <td>{{ check.rationale }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Артефакты</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Артефакт</th><th>Роль</th><th class="num">Размер</th><th>Путь</th></tr></thead>
+    <tbody>
+    {% for artifact in run.artifacts %}
+      <tr>
+        <td>{{ artifact.id }}</td>
+        <td>{{ artifact.role }}</td>
+        <td class="num">{{ artifact.byte_size }}</td>
+        <td>
+          {% if artifact.content_kind == "FILE" %}
+            <a href="/artifact/{{ run.execution_id }}/{{ artifact.location.path }}"><code>{{ artifact.location.path }}</code></a>
+          {% else %}
+            <code>{{ artifact.location.path }}</code>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

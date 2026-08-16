@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Сравнение способов{% endblock %}
+{% block content %}
+
+<h1>Сравнение способов</h1>
+<p class="question">
+  Время и деньги разнесены по этапам цепочки. Два разных измерения показаны
+  двумя графиками, а не двумя осями на одном.
+</p>
+
+{% if runs %}
+{{ charts.legend | safe }}
+
+<div class="card">
+  <h3 style="margin-top:0">Время по этапам</h3>
+  <div class="chart-wrap">{{ charts.time | safe }}</div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Стоимость по этапам</h3>
+  <div class="chart-wrap">{{ charts.cost | safe }}</div>
+</div>
+
+<h2>Таблица</h2>
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Способ</th><th>Цепочка</th>
+        <th class="num">Время, с</th><th class="num">Цена, $</th>
+        <th class="num">Вызовов</th><th class="num">Ошибочных</th>
+        <th>Ссылки</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for run in runs %}
+      <tr>
+        <td><a href="/run/{{ run.execution_id }}">{{ run.candidate_id }}·r{{ run.repetition }}</a></td>
+        <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
+        <td class="num">{% if run.wall_time is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ "%.1f"|format(run.wall_time) }}{% endif %}</td>
+        <td class="num">{% if run.api_cost is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ "%.6f"|format(run.api_cost) }}{% endif %}</td>
+        <td class="num">{% if run.tool_calls is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ run.tool_calls }}{% endif %}</td>
+        <td class="num">{% if run.failed_tool_calls is none %}<span class="unknown-cell">—</span>
+            {% else %}{{ run.failed_tool_calls }}{% endif %}</td>
+        <td>{% if run.citation_verdict %}
+              <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+            {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    Общего итога по колонкам нет намеренно: балл, время и цена не складываются
+    в одно число. Прочерк — величина неизвестна, а не равна нулю.
+  </p>
+</div>
+
+<h2>Выбрать прогоны</h2>
+<div class="card">
+  <form method="get" action="/compare">
+    <table>
+      <thead><tr><th></th><th>Прогон</th><th>Эксперимент</th></tr></thead>
+      <tbody>
+      {% for run in all_runs %}
+        <tr>
+          <td><input type="checkbox" name="id" value="{{ run.execution_id }}"
+              {% if run.execution_id in selected %}checked{% endif %}></td>
+          <td>{{ run.candidate_id }}·r{{ run.repetition }}</td>
+          <td class="chain">{{ run.experiment_id }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="note"><button type="submit">Показать выбранные</button></p>
+  </form>
+</div>
+
+{% else %}
+<div class="card"><p class="empty">Прогонов пока нет — сравнивать нечего.</p></div>
+{% endif %}
+{% endblock %}

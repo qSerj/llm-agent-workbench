@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Прогоны{% endblock %}
+{% block content %}
+
+<h1>Прогоны</h1>
+
+<div class="card">
+  <h3 style="margin-top:0">Запустить эксперимент</h3>
+  {% if available %}
+  <form class="launch" method="post" action="/launch">
+    <select name="experiment">
+      {% for name in available %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+    </select>
+    <input type="text" name="candidates" placeholder="способы через запятую (пусто — все)" size="34">
+    <button type="submit">Запустить</button>
+  </form>
+  <p class="note">Запуск идёт в фоне; страница прогресса обновляется сама.</p>
+  {% else %}
+  <p class="empty">В каталоге <code>experiments/</code> нет описаний.</p>
+  {% endif %}
+</div>
+
+{% if jobs %}
+<h2>Запуски</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>Начат</th><th>Эксперимент</th><th>Способы</th><th>Состояние</th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td><a href="/job/{{ job.id }}">{{ job.started_at }}</a></td>
+        <td>{{ job.experiment }}</td>
+        <td>{{ job.candidates | join(", ") if job.candidates else "все" }}</td>
+        <td>{% if job.running %}<span class="running">идёт</span>
+            {% else %}код {{ job.exit_code }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if experiments %}
+  {% for experiment_id, runs in experiments.items() %}
+  <h2>{{ experiment_id }}</h2>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Способ</th><th>Цепочка</th>
+          <th class="num">Этапов</th><th class="num">Время, с</th>
+          <th class="num">Цена, $</th><th class="num">Вызовов</th>
+          <th>Ссылки</th><th>Состояние</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for run in runs %}
+        <tr>
+          <td><a href="/run/{{ run.execution_id }}">{{ run.candidate_id }}·r{{ run.repetition }}</a></td>
+          <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
+          <td class="num">{{ run.stage_count }}</td>
+          <td class="num">{% if run.wall_time is none %}<span class="unknown-cell">—</span>
+              {% else %}{{ "%.1f"|format(run.wall_time) }}{% endif %}</td>
+          <td class="num">{% if run.api_cost is none %}<span class="unknown-cell">—</span>
+              {% else %}{{ "%.6f"|format(run.api_cost) }}{% endif %}</td>
+          <td class="num">{% if run.tool_calls is none %}<span class="unknown-cell">—</span>
+              {% else %}{{ run.tool_calls }}{% endif %}</td>
+          <td>{% if run.citation_verdict %}
+                <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+              {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+          <td>{{ run.status }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="note">
+      <a href="/compare?{% for run in runs %}id={{ run.execution_id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Сравнить все способы этого эксперимента →</a>
+    </p>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card">
+  <p class="empty">Прогонов пока нет. Каталог: <code>{{ executions_root }}</code></p>
+</div>
+{% endif %}
+
+<p class="note">Прочерк означает, что величина неизвестна, а не равна нулю.</p>
+{% endblock %}
