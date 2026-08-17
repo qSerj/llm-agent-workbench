@@ -2,7 +2,8 @@
 {% block title %}{{ run.candidate_id }}{% endblock %}
 {% block content %}
 
-<h1>{{ run.candidate_id }}·r{{ run.repetition }}</h1>
+<h1>{{ run.label }}</h1>
+<p class="note">{{ run.experiment_id }} · начат {{ run.moment }}</p>
 <p class="question">
   {{ run.experiment_id }} · {{ run.status }} · начат {{ run.started_at }}
 </p>

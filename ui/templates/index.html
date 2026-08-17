@@ -14,7 +14,10 @@
     <input type="text" name="candidates" placeholder="способы через запятую (пусто — все)" size="34">
     <button type="submit">Запустить</button>
   </form>
-  <p class="note">Запуск идёт в фоне; страница прогресса обновляется сама.</p>
+  <p class="note">
+    Запуск идёт в фоне; страница прогресса обновляется сама. Спланировать:
+    {% for name in available %}<a href="/experiment/{{ name }}">{{ name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
   {% else %}
   <p class="empty">В каталоге <code>experiments/</code> нет описаний.</p>
   {% endif %}
@@ -47,7 +50,7 @@
     <table>
       <thead>
         <tr>
-          <th>Способ</th><th>Цепочка</th>
+          <th>Способ</th><th>Начат</th><th>Цепочка</th>
           <th class="num">Этапов</th><th class="num">Время, с</th>
           <th class="num">Цена, $</th><th class="num">Вызовов</th>
           <th>Ссылки</th><th>Состояние</th>
@@ -56,7 +59,8 @@
       <tbody>
       {% for run in runs %}
         <tr>
-          <td><a href="/run/{{ run.execution_id }}">{{ run.candidate_id }}·r{{ run.repetition }}</a></td>
+          <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+          <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
           <td class="num">{{ run.stage_count }}</td>
           <td class="num">{% if run.wall_time is none %}<span class="unknown-cell">—</span>
@@ -67,6 +71,8 @@
               {% else %}{{ run.tool_calls }}{% endif %}</td>
           <td>{% if run.citation_verdict %}
                 <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+                {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>
+                {% elif run.citation_checks %}<span class="checks">{{ run.citation_checks }}</span>{% endif %}
               {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
           <td>{{ run.status }}</td>
         </tr>

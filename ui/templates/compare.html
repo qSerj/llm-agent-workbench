@@ -26,7 +26,7 @@
   <table>
     <thead>
       <tr>
-        <th>Способ</th><th>Цепочка</th>
+        <th>Способ</th><th>Начат</th><th>Цепочка</th>
         <th class="num">Время, с</th><th class="num">Цена, $</th>
         <th class="num">Вызовов</th><th class="num">Ошибочных</th>
         <th>Ссылки</th>
@@ -35,7 +35,8 @@
     <tbody>
     {% for run in runs %}
       <tr>
-        <td><a href="/run/{{ run.execution_id }}">{{ run.candidate_id }}·r{{ run.repetition }}</a></td>
+        <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+        <td class="chain">{{ run.moment }}</td>
         <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
         <td class="num">{% if run.wall_time is none %}<span class="unknown-cell">—</span>
             {% else %}{{ "%.1f"|format(run.wall_time) }}{% endif %}</td>
@@ -47,6 +48,8 @@
             {% else %}{{ run.failed_tool_calls }}{% endif %}</td>
         <td>{% if run.citation_verdict %}
               <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+              {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>
+              {% elif run.citation_checks %}<span class="checks">{{ run.citation_checks }}</span>{% endif %}
             {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
       </tr>
     {% endfor %}
@@ -62,13 +65,14 @@
 <div class="card">
   <form method="get" action="/compare">
     <table>
-      <thead><tr><th></th><th>Прогон</th><th>Эксперимент</th></tr></thead>
+      <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Эксперимент</th></tr></thead>
       <tbody>
       {% for run in all_runs %}
         <tr>
           <td><input type="checkbox" name="id" value="{{ run.execution_id }}"
               {% if run.execution_id in selected %}checked{% endif %}></td>
-          <td>{{ run.candidate_id }}·r{{ run.repetition }}</td>
+          <td>{{ run.label }}</td>
+          <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.experiment_id }}</td>
         </tr>
       {% endfor %}
