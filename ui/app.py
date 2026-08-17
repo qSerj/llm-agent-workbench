@@ -37,6 +37,7 @@ from workbench.experiment import (
     reference_text,
 )
 from workbench.storage import is_hidden, move_to_trash
+from workbench.textdiff import diff_lines, differing_prompts, stage_rows
 
 DESCRIPTION_NAME = "experiment.yaml"
 
@@ -306,12 +307,19 @@ def editor_context(
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Any:
-    experiments = store.experiments()
+    # Grouped by sitting, newest first: runs from different days in one table
+    # invite a comparison that is not sound.
+    sessions = [
+        {"experiment": experiment, "session": session, "runs": group}
+        for (experiment, session), group in sorted(
+            store.sessions().items(), key=lambda item: item[0], reverse=True
+        )
+    ]
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
-            "experiments": experiments,
+            "sessions": sessions,
             "available": available_experiments(),
             "jobs": sorted(JOBS.values(), key=lambda job: job.started_at, reverse=True),
             "executions_root": EXECUTIONS,
@@ -334,9 +342,22 @@ def run_detail(request: Request, execution_id: str) -> Any:
 
 @app.get("/compare", response_class=HTMLResponse)
 def compare(request: Request, id: list[str] | None = None) -> Any:
+    # Comparing everything compares runs from different days in one table, and
+    # a chain run a day later is a different measurement. Without a choice, show
+    # the most recent sitting.
     runs = store.select(id or [])
     if not runs:
-        runs = store.runs()
+        runs = store.latest_session()
+    sessions = [
+        {
+            "experiment": experiment,
+            "session": session,
+            "ids": [run.execution_id for run in group],
+            "moment": min(run.moment for run in group),
+            "count": len(group),
+        }
+        for (experiment, session), group in sorted(store.sessions().items())
+    ]
     return templates.TemplateResponse(
         request=request,
         name="compare.html",
@@ -344,6 +365,42 @@ def compare(request: Request, id: list[str] | None = None) -> Any:
             "runs": runs,
             "charts": comparison_charts(runs),
             "selected": {run.execution_id for run in runs},
+            "all_runs": store.runs(),
+            "sessions": sessions,
+            "showing_all": bool(id),
+        },
+    )
+
+
+@app.get("/run-diff", response_class=HTMLResponse)
+def run_diff(request: Request, a: str = "", b: str = "") -> Any:
+    """Diff the documents two runs produced, which is the result itself."""
+    left, right = store.run(a), store.run(b)
+    if left is None or right is None:
+        raise HTTPException(status_code=404, detail="прогон не найден")
+
+    def document(run: Run) -> tuple[str, str]:
+        for artifact in run.artifacts:
+            if artifact["id"] == "final-document" and "path" in artifact["location"]:
+                path = run.directory / artifact["location"]["path"]
+                if path.is_file():
+                    return artifact["location"]["path"], path.read_text(
+                        encoding="utf-8", errors="replace"
+                    )
+        return "", ""
+
+    left_path, left_text = document(left)
+    right_path, right_text = document(right)
+    return templates.TemplateResponse(
+        request=request,
+        name="run-diff.html",
+        context={
+            "left": left,
+            "right": right,
+            "left_path": left_path,
+            "right_path": right_path,
+            "rows": diff_lines(left_text, right_text, left.label, right.label),
+            "missing": not left_text and not right_text,
             "all_runs": store.runs(),
         },
     )
@@ -539,6 +596,42 @@ async def runs_delete(request: Request) -> Any:
         if run is not None:
             move_to_trash(run.directory, EXECUTIONS.resolve())
     return RedirectResponse(url="/compare", status_code=303)
+
+
+@app.get("/experiment/{name}/diff", response_class=HTMLResponse)
+def experiment_diff(request: Request, name: str, a: str = "", b: str = "") -> Any:
+    """Say what actually separates two candidates: their chain and their prompts."""
+    path = description_path(name)
+    document = normalised(read_yaml(path), name)
+    by_id = {item["id"]: item for item in document["candidates"]}
+    names = list(by_id)
+    left_id = a if a in by_id else (names[0] if names else "")
+    right_id = b if b in by_id else (names[1] if len(names) > 1 else left_id)
+
+    def read(prompt: str) -> str:
+        if not prompt:
+            return ""
+        target = (ROOT / prompt).resolve()
+        return (
+            target.read_text(encoding="utf-8", errors="replace")
+            if target.is_file()
+            else ""
+        )
+
+    left = by_id.get(left_id, {}).get("stages") or []
+    right = by_id.get(right_id, {}).get("stages") or []
+    return templates.TemplateResponse(
+        request=request,
+        name="experiment-diff.html",
+        context={
+            "name": name,
+            "candidates": names,
+            "left_id": left_id,
+            "right_id": right_id,
+            "rows": stage_rows(left, right),
+            "prompts": differing_prompts(left, right, read),
+        },
+    )
 
 
 @app.get("/experiment/{name}", response_class=HTMLResponse)

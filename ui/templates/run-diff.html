@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Чем отличаются результаты{% endblock %}
+{% block content %}
+
+<h1>Чем отличаются результаты</h1>
+<p class="note"><a href="/compare">← Сравнение</a></p>
+
+<div class="card">
+  <form method="get" action="/run-diff" class="launch">
+    <label for="a">Слева</label>
+    <select id="a" name="a">
+      {% for run in all_runs %}
+      <option value="{{ run.execution_id }}" {% if run.execution_id == left.execution_id %}selected{% endif %}>
+        {{ run.label }} · {{ run.moment }}
+      </option>
+      {% endfor %}
+    </select>
+    <label for="b">Справа</label>
+    <select id="b" name="b">
+      {% for run in all_runs %}
+      <option value="{{ run.execution_id }}" {% if run.execution_id == right.execution_id %}selected{% endif %}>
+        {{ run.label }} · {{ run.moment }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit">Показать</button>
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Ссылки</th><th>Документ</th></tr></thead>
+    <tbody>
+      {% for run, path in [(left, left_path), (right, right_path)] %}
+      <tr>
+        <td class="chain">{{ "слева" if loop.first else "справа" }}</td>
+        <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+        <td class="chain">{{ run.moment }}</td>
+        <td>{% if run.citation_verdict %}
+              <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+              {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>{% endif %}
+            {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+        <td class="chain">{{ path or "не создан" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if missing %}
+<div class="card">
+  <p class="empty">
+    Ни один из прогонов не оставил итогового документа — сравнивать нечего.
+  </p>
+</div>
+{% elif rows %}
+<div class="card">
+  <pre class="diff">{% for line in rows %}<span class="{{ line.kind }}">{{ line.text }}</span>
+{% endfor %}</pre>
+</div>
+{% else %}
+<div class="card">
+  <p class="empty">Документы совпадают до последнего символа.</p>
+</div>
+{% endif %}
+
+{% endblock %}

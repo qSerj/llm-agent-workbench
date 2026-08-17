@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Чем отличаются способы{% endblock %}
+{% block content %}
+
+<h1>Чем отличаются способы</h1>
+<p class="note"><a href="/experiment/{{ name }}">← {{ name }}</a></p>
+
+<div class="card">
+  <form method="get" action="/experiment/{{ name }}/diff" class="launch">
+    <label for="a">Слева</label>
+    <select id="a" name="a">
+      {% for item in candidates %}
+      <option value="{{ item }}" {% if item == left_id %}selected{% endif %}>{{ item }}</option>
+      {% endfor %}
+    </select>
+    <label for="b">Справа</label>
+    <select id="b" name="b">
+      {% for item in candidates %}
+      <option value="{{ item }}" {% if item == right_id %}selected{% endif %}>{{ item }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Показать</button>
+  </form>
+</div>
+
+<h2>Цепочка</h2>
+<div class="card">
+  <div class="chart-wrap">
+  <table>
+    <thead>
+      <tr><th>Этап</th><th>Поле</th><th>{{ left_id }}</th><th>{{ right_id }}</th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr class="{{ 'same' if row.same else 'differs' }}">
+        <td class="num">{{ row.stage }}</td>
+        <td class="chain">{{ row.field }}</td>
+        <td>{{ row.before or "—" }}</td>
+        <td>{{ row.after or "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">Совпадающие строки приглушены; различия выделены.</p>
+</div>
+
+<h2>Промпты</h2>
+{% for before, after, lines in prompts %}
+<div class="card">
+  <h3 style="margin-top:0">{{ before or "(нет этапа)" }} → {{ after or "(нет этапа)" }}</h3>
+  <pre class="diff">{% for line in lines %}<span class="{{ line.kind }}">{{ line.text }}</span>
+{% endfor %}</pre>
+</div>
+{% else %}
+<div class="card">
+  <p class="empty">
+    Эти способы используют одни и те же промпты — различие, если оно есть, в
+    моделях или в составе этапов.
+  </p>
+</div>
+{% endfor %}
+
+{% endblock %}

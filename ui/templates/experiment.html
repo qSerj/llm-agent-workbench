@@ -3,7 +3,10 @@
 {% block content %}
 
 <h1>{{ name }}</h1>
-<p class="note">{{ directory }}</p>
+<p class="note">
+  {{ directory }} ·
+  <a href="/experiment/{{ name }}/diff">Чем отличаются способы →</a>
+</p>
 
 {% if error %}
 <div class="card notice bad">

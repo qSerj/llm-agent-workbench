@@ -61,6 +61,16 @@ class Run:
         return self.started_at[:16].replace("T", " ")
 
     @property
+    def session(self) -> str:
+        """Which sitting this run belongs to — the unit worth comparing.
+
+        Candidates are only comparable against the ones run beside them: models
+        drift, and the same chain a day later is a different measurement. Runs
+        written before dated directories fall back to the day they started.
+        """
+        return self.stamp or self.day
+
+    @property
     def status(self) -> str:
         return self.envelope["lifecycle"]["status"]
 
@@ -218,6 +228,21 @@ class Store:
         for run in self.runs():
             grouped.setdefault(run.experiment_id, []).append(run)
         return grouped
+
+    def sessions(self) -> dict[tuple[str, str], list[Run]]:
+        """Runs grouped by the sitting that produced them, newest last."""
+        grouped: dict[tuple[str, str], list[Run]] = {}
+        for run in self.runs():
+            grouped.setdefault((run.experiment_id, run.session), []).append(run)
+        return grouped
+
+    def latest_session(self) -> list[Run]:
+        """The sitting to show when nobody asked for anything in particular."""
+        grouped = self.sessions()
+        if not grouped:
+            return []
+        newest = max(grouped.values(), key=lambda runs: max(r.started_at for r in runs))
+        return newest
 
     def run(self, execution_id: str) -> Run | None:
         for run in self.runs():

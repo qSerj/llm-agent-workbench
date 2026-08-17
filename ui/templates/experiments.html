@@ -31,6 +31,7 @@
   {% endif %}
   <div class="card save" style="margin:0.75rem 0 0; padding:0.75rem 0 0; border:0">
     <a href="/experiment/{{ experiment.name }}">Править описание →</a>
+    <a href="/experiment/{{ experiment.name }}/diff">Чем отличаются способы →</a>
     <form method="post" action="/experiment/{{ experiment.name }}/delete">
       <button type="submit" class="danger"
               data-confirm="Убрать эксперимент {{ experiment.name }} в корзину? Прогоны останутся.">

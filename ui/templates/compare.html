@@ -8,6 +8,26 @@
   двумя графиками, а не двумя осями на одном.
 </p>
 
+{% if sessions %}
+<div class="card">
+  <p class="hint" style="margin-top:0">
+    Сравнивать имеет смысл способы, прогнанные рядом: модели недетерминированы,
+    и та же цепочка назавтра — уже другое измерение. Без выбора показан
+    последний прогон.
+  </p>
+  <ul class="legend">
+    {% for item in sessions %}
+    <li>
+      <a href="/compare?{% for id in item.ids %}id={{ id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">
+        {{ item.experiment }} · {{ item.moment }}
+      </a>
+      <span class="checks">{{ item.count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% if runs %}
 {{ charts.legend | safe }}
 
@@ -59,6 +79,13 @@
     Общего итога по колонкам нет намеренно: балл, время и цена не складываются
     в одно число. Прочерк — величина неизвестна, а не равна нулю.
   </p>
+  {% if runs | length > 1 %}
+  <p class="note">
+    <a href="/run-diff?a={{ runs[0].execution_id }}&amp;b={{ runs[1].execution_id }}">
+      Чем отличаются результаты →
+    </a>
+  </p>
+  {% endif %}
 </div>
 
 <h2>Хранилище прогонов</h2>

@@ -43,9 +43,10 @@
 </div>
 {% endif %}
 
-{% if experiments %}
-  {% for experiment_id, runs in experiments.items() %}
-  <h2>{{ experiment_id }}</h2>
+{% if sessions %}
+  {% for group in sessions %}
+  {% set runs = group.runs %}
+  <h2>{{ group.experiment }} <span class="checks">прогон {{ group.session }}</span></h2>
   <div class="card">
     <table>
       <thead>
@@ -80,7 +81,10 @@
       </tbody>
     </table>
     <p class="note">
-      <a href="/compare?{% for run in runs %}id={{ run.execution_id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Сравнить все способы этого эксперимента →</a>
+      <a href="/compare?{% for run in runs %}id={{ run.execution_id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Сравнить способы этого прогона →</a>
+      {% if runs | length > 1 %}
+      · <a href="/run-diff?a={{ runs[0].execution_id }}&amp;b={{ runs[1].execution_id }}">Чем отличаются результаты →</a>
+      {% endif %}
     </p>
   </div>
   {% endfor %}

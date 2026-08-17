@@ -176,6 +176,16 @@ p.hint {
   color: var(--muted); font-size: 0.8rem; margin: 0.25rem 0 0; max-width: 62ch;
 }
 p.waiting { color: var(--warning); font-weight: 600; margin: 0.5rem 0 0; }
+pre.diff { max-height: 40rem; }
+pre.diff span { display: block; padding: 0 0.3rem; white-space: pre-wrap; }
+pre.diff .meta { color: var(--muted); }
+pre.diff .added { background: color-mix(in srgb, var(--good) 16%, transparent); }
+pre.diff .removed { background: color-mix(in srgb, var(--critical) 16%, transparent); }
+pre.diff .added::before { content: "+ "; color: var(--good); }
+pre.diff .removed::before { content: "− "; color: var(--critical); }
+pre.diff .context::before { content: "  "; }
+tr.same td { color: var(--muted); }
+tr.differs td { font-weight: 600; }
 button.danger { border-color: var(--critical); color: var(--critical); }
 button.danger:hover { background: var(--critical); color: var(--surface); }
 .grid.stage-row {
