@@ -61,24 +61,36 @@
   </p>
 </div>
 
-<h2>Выбрать прогоны</h2>
+<h2>Хранилище прогонов</h2>
 <div class="card">
-  <form method="get" action="/compare">
+  <p class="hint">
+    Отметьте прогоны, чтобы сравнить только их — или чтобы убрать в корзину.
+    Прогон стоил денег и в точности не повторяется, поэтому удаление переносит
+    его в <code>executions/.trash/</code>, а не стирает.
+  </p>
+  <form method="post" action="/runs/delete" id="storage">
     <table>
-      <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Эксперимент</th></tr></thead>
+      <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Эксперимент</th><th>Вердикт</th></tr></thead>
       <tbody>
       {% for run in all_runs %}
         <tr>
           <td><input type="checkbox" name="id" value="{{ run.execution_id }}"
               {% if run.execution_id in selected %}checked{% endif %}></td>
-          <td>{{ run.label }}</td>
+          <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
           <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.experiment_id }}</td>
+          <td>{% if run.citation_verdict %}
+                <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
+              {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-    <p class="note"><button type="submit">Показать выбранные</button></p>
+    <p class="note">
+      <button type="submit" formmethod="get" formaction="/compare">Показать выбранные</button>
+      <button type="submit" class="danger"
+              data-confirm="Убрать отмеченные прогоны в корзину?">Убрать в корзину</button>
+    </p>
   </form>
 </div>
 

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Эксперименты{% endblock %}
+{% block content %}
+
+<h1>Эксперименты</h1>
+<p class="question">
+  Эксперимент — это вопрос и несколько способов на него ответить. Здесь он
+  описывается до запуска; что случилось на самом деле, показывают прогоны.
+</p>
+
+{% for experiment in experiments %}
+<div class="card">
+  <h2 style="margin-top:0">
+    <a href="/experiment/{{ experiment.name }}">{{ experiment.name }}</a>
+  </h2>
+  {% if experiment.error %}
+  <p class="notice bad">описание не читается: {{ experiment.error }}</p>
+  {% else %}
+  <p class="question" style="margin-bottom:0.75rem">{{ experiment.question }}</p>
+  <table>
+    <thead><tr><th>Способ</th><th>Цепочка</th></tr></thead>
+    <tbody>
+    {% for candidate in experiment.candidates %}
+      <tr><td>{{ candidate.id }}</td><td class="chain">{{ candidate.chain }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    Рабочее пространство: <code>{{ experiment.workspace }}</code>
+  </p>
+  {% endif %}
+  <div class="card save" style="margin:0.75rem 0 0; padding:0.75rem 0 0; border:0">
+    <a href="/experiment/{{ experiment.name }}">Править описание →</a>
+    <form method="post" action="/experiment/{{ experiment.name }}/delete">
+      <button type="submit" class="danger"
+              data-confirm="Убрать эксперимент {{ experiment.name }} в корзину? Прогоны останутся.">
+        Убрать в корзину
+      </button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <p class="empty">Пока ни одного описания.</p>
+  <p><a href="/experiment/new">Создать первый эксперимент →</a></p>
+</div>
+{% endfor %}
+
+<p class="note">
+  Удалённое переезжает в <code>experiments/.trash/</code> и остаётся на диске.
+</p>
+{% endblock %}

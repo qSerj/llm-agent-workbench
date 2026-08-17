@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Лаборатория{% endblock %}</title>
+<link rel="stylesheet" href="/static/vendor/tom-select.min.css">
 <style>
 :root {
   color-scheme: light;
@@ -171,6 +172,25 @@ table.matrix td.actions { width: 7rem; }
 p.cell-label {
   color: var(--muted); font-size: 0.75rem; margin: 0.4rem 0 0.15rem;
 }
+p.hint {
+  color: var(--muted); font-size: 0.8rem; margin: 0.25rem 0 0; max-width: 62ch;
+}
+p.waiting { color: var(--warning); font-weight: 600; margin: 0.5rem 0 0; }
+button.danger { border-color: var(--critical); color: var(--critical); }
+button.danger:hover { background: var(--critical); color: var(--surface); }
+.grid.stage-row {
+  border-left: 3px solid var(--baseline); padding-left: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+/* Tom Select has to read as the rest of the form, in both themes. */
+.ts-wrapper { margin-bottom: 0.25rem; }
+.ts-control, .ts-dropdown {
+  background: var(--surface) !important; color: var(--text-primary) !important;
+  border-color: var(--baseline) !important; font: inherit;
+}
+.ts-dropdown .active { background: var(--grid) !important; color: var(--text-primary) !important; }
+.ts-dropdown .no-results { color: var(--muted); padding: 0.4rem 0.6rem; }
+.ts-control input, .ts-control .item { color: var(--text-primary) !important; }
 button.quiet {
   border-color: transparent; background: none; color: var(--text-secondary);
   font-weight: 400; font-size: 0.85rem; padding: 0.2rem 0.35rem;
@@ -187,11 +207,15 @@ button.quiet:hover { color: var(--series-1); }
 <header class="top">
   <div class="inner">
     <a class="brand" href="/">Лаборатория</a>
+    <a href="/experiments">Эксперименты</a>
     <a href="/compare">Сравнение</a>
+    <a href="/experiment/new">+ Новый эксперимент</a>
   </div>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
+<script src="/static/vendor/tom-select.min.js"></script>
+<script src="/static/shell.js"></script>
 </body>
 </html>

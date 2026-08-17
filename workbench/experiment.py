@@ -60,8 +60,12 @@ def read_yaml(path: Path) -> Any:
 
 
 def versioned_reference(value: Any, field_name: str) -> dict[str, str]:
-    """Accept either ``name`` or ``{id: name, version: "2"}``."""
-    if isinstance(value, str):
+    """Accept either ``name`` or ``{id: name, version: "2"}``.
+
+    An empty name is not a name: it would write a reference that cannot be read
+    back, which is worse than refusing it here.
+    """
+    if isinstance(value, str) and value:
         return {"id": value, "version": "1"}
     if isinstance(value, dict) and "id" in value:
         return {"id": str(value["id"]), "version": str(value.get("version", "1"))}
@@ -166,6 +170,35 @@ def parse_experiment(
             for key, value in (document.get("evaluate") or {}).items()
         },
     )
+
+
+def blank_document(
+    experiment_id: str, question: str, workspace: str, prompt: str = "task.md"
+) -> dict[str, Any]:
+    """The smallest description that still runs: one candidate, one stage.
+
+    A new experiment starts from something valid rather than from an empty page,
+    so the first thing a person sees is a working shape to change.
+    """
+    return {
+        "id": experiment_id,
+        "question": question,
+        "workspace": workspace,
+        "task": experiment_id,
+        "candidates": [
+            {
+                "id": "single",
+                "stages": [
+                    {
+                        "role": "SOLVER",
+                        "model": "",
+                        "prompt": f"experiments/{experiment_id}/{prompt}",
+                        "allow_edit": [],
+                    }
+                ],
+            }
+        ],
+    }
 
 
 def leading_comment(text: str) -> str:
@@ -338,10 +371,15 @@ def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
         "id": one(fields, "id"),
         "question": one(fields, "question"),
         "workspace": one(fields, "workspace"),
-        "task": reference_field(one(fields, "task")),
-        "case": reference_field(one(fields, "case")),
         "candidates": candidates,
     }
+    # An empty reference field means "use the default" — the experiment id for a
+    # task, the workspace name for a case. Writing it out as an empty value would
+    # produce a description that no longer reads back.
+    for name in ("task", "case"):
+        text = one(fields, name)
+        if text:
+            document[name] = reference_field(text)
     repetitions = one(fields, "repetitions", "1")
     document["repetitions"] = int(repetitions) if repetitions.isdigit() else repetitions
 

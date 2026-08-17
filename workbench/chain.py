@@ -135,11 +135,18 @@ def run_directory(output: Path, experiment_id: str, today: str) -> Path:
     return candidate
 
 
-def build_opencode_config(spec: StageSpec) -> tuple[dict[str, Any], str]:
-    """Return the OpenCode configuration and the model name it should run."""
+def build_opencode_config(
+    spec: StageSpec, permission: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], str]:
+    """Return the OpenCode configuration and the model name it should run.
+
+    A stage must declare what it may edit. A caller that is not running a stage —
+    asking a model for a draft, say — passes its own permissions instead, and
+    ``allow_edit`` is then not consulted at all.
+    """
     config: dict[str, Any] = {
         "$schema": "https://opencode.ai/config.json",
-        "permission": permission_config(spec.allow_edit),
+        "permission": permission or permission_config(spec.allow_edit),
     }
 
     if spec.provider == "openrouter":

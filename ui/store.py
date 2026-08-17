@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from workbench.storage import is_hidden
+
 ENVELOPE_NAME = "execution-envelope.json"
 
 # Fixed slot per stage role. Colour follows the entity, never its rank, so a
@@ -191,8 +193,11 @@ class Store:
         found: list[Run] = []
         for path in sorted(self.root.rglob(ENVELOPE_NAME)):
             # A run keeps copies of the workspace; an envelope that a candidate
-            # happened to produce inside one is data, not a run of ours.
+            # happened to produce inside one is data, not a run of ours. Deleted
+            # runs live under a dot-directory and are equally not ours to list.
             if {"input-workspace", "stages"} & set(path.parts):
+                continue
+            if is_hidden(path, self.root):
                 continue
             try:
                 found.append(load_run(path, self.root))

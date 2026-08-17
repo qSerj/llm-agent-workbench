@@ -219,6 +219,15 @@ class ExperimentDocumentTests(unittest.TestCase):
         self.assertEqual(stage["allow_edit"], ["docs/report.md", "docs/notes.md"])
         self.assertNotIn("provider", stage)
 
+    def test_empty_task_and_case_fall_back_to_the_defaults(self) -> None:
+        """An empty field must mean "default", not a description that cannot load."""
+        fields = dict(self.FIELDS)
+        fields["task"] = [""]
+        fields["case"] = ["  "]
+        document = experiment_document(fields)
+        self.assertNotIn("task", document)
+        self.assertNotIn("case", document)
+
     def test_repeated_allow_edit_fields_stay_with_their_own_stage(self) -> None:
         """One input per path: blanks are dropped, and stages do not bleed."""
         fields = dict(self.FIELDS)
@@ -291,6 +300,10 @@ class VersionedReferenceTests(unittest.TestCase):
     def test_mapping_without_id_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             versioned_reference({"version": "1"}, "task")
+
+    def test_an_empty_name_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            versioned_reference("", "case")
 
 
 if __name__ == "__main__":

@@ -30,6 +30,10 @@
   <div class="field">
     <label for="question">Вопрос эксперимента</label>
     <textarea id="question" name="question" rows="3">{{ draft.question }}</textarea>
+    <p class="hint">
+      Ради чего ставится опыт. Хранится рядом с матрицей, чтобы техническая
+      часть не вытеснила смысл.
+    </p>
   </div>
   <div class="grid">
     <div class="field">
@@ -40,24 +44,36 @@
       <label for="evaluate">Проверка ссылок в документе</label>
       <input type="text" id="evaluate" name="evaluate.citations"
              value="{{ draft.evaluate.get('citations', '') }}">
+      <p class="hint">
+        Путь к итоговому документу внутри пространства. Программа проверит, что
+        каждая ссылка <code>путь:строка</code> в нём указывает на существующую
+        строку. Пусто — проверки не будет.
+      </p>
     </div>
     <div class="field">
       <label for="task">Задача</label>
       <input type="text" id="task" name="task" value="{{ draft.task }}">
+      <p class="hint">Имя задачи. <code>имя@2</code> — если версия не первая.</p>
     </div>
     <div class="field">
       <label for="case">Пример</label>
       <input type="text" id="case" name="case" value="{{ draft.case }}">
+      <p class="hint">На каком материале решается задача.</p>
     </div>
     <div class="field">
       <label for="repetitions">Повторений</label>
       <input type="text" id="repetitions" name="repetitions" value="{{ draft.repetitions }}">
+      <p class="hint">
+        Сколько раз прогнать каждый способ. Модели недетерминированы, так что
+        одного прогона хватает только на порядок величины.
+      </p>
     </div>
   </div>
   <input type="hidden" name="id" value="{{ draft.id }}">
-  <p class="note">
+  <p class="hint">
     Путь к пространству может вести куда угодно на диске, в том числе за пределы
-    репозитория. Внешнее пространство не переносится вместе с описанием.
+    репозитория: исполнитель работает по копии и оригинал не меняет. Внешнее
+    пространство не переносится вместе с описанием.
   </p>
 </div>
 
@@ -88,15 +104,18 @@
             <option value="{{ role }}" {% if role == stage.role %}selected{% endif %}>{{ role }}</option>
             {% endfor %}
           </select>
-          <input type="text" list="models" placeholder="модель"
+          <p class="cell-label">модель</p>
+          <input type="text" data-choices="models" list="models" placeholder="начните вводить"
                  name="candidate.{{ row }}.stage.{{ column }}.model"
                  value="{{ stage.model }}">
-          <input type="text" list="prompt-paths" placeholder="путь к промпту"
+          <p class="cell-label">промпт</p>
+          <input type="text" data-choices="prompt-paths" list="prompt-paths"
+                 placeholder="путь к промпту"
                  name="candidate.{{ row }}.stage.{{ column }}.prompt"
                  value="{{ stage.prompt }}">
           <p class="cell-label">правит файлы</p>
           {% for path in stage.allow_edit %}
-          <input type="text" list="workspace-paths"
+          <input type="text" data-choices="workspace-paths" list="workspace-paths"
                  name="candidate.{{ row }}.stage.{{ column }}.allow_edit"
                  value="{{ path }}">
           {% endfor %}

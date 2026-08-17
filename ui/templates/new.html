@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Новый эксперимент{% endblock %}
+{% block content %}
+
+<h1>Новый эксперимент</h1>
+
+{% if error %}
+<div class="card notice bad">{{ error }}</div>
+{% endif %}
+
+<datalist id="models">
+  {% for model in models %}<option value="{{ model }}"></option>{% endfor %}
+</datalist>
+
+<form method="post" action="/experiment/new"
+      data-waiting="Составитель работает. Это занимает до минуты — страница ждёт ответа.">
+  <div class="card">
+    <div class="field">
+      <label for="name">Имя каталога</label>
+      <input type="text" id="name" name="name" value="{{ form.get('name', '') }}"
+             placeholder="gpt-docs-comparison">
+      <p class="hint">
+        Строчные латинские буквы, цифры и дефис. Станет каталогом
+        <code>experiments/&lt;имя&gt;/</code>.
+      </p>
+    </div>
+    <div class="field">
+      <label for="description">Что хочу проверить</label>
+      <textarea id="description" name="description" rows="4"
+                placeholder="Обычными словами: какой вопрос об этих способах решения вас занимает.">{{ form.get('description', '') }}</textarea>
+      <p class="hint">
+        Это станет исследовательским вопросом и основой промптов. Чем конкретнее,
+        тем меньше править за составителем.
+      </p>
+    </div>
+    <div class="field">
+      <label for="success">Как поймём, что результат хороший</label>
+      <textarea id="success" name="success" rows="3"
+                placeholder="Например: все утверждения подтверждаются ссылками на исходники; тесты проходят.">{{ form.get('success', '') }}</textarea>
+      <p class="hint">Отсюда возьмётся способ оценки. Можно оставить пустым.</p>
+    </div>
+    <div class="field">
+      <label for="workspace">Рабочее пространство</label>
+      <input type="text" id="workspace" name="workspace"
+             value="{{ form.get('workspace', '') }}"
+             placeholder="/home/qserj/Projects/другой-репозиторий">
+      <p class="hint">
+        Путь к репозиторию, над которым идёт работа. Может вести куда угодно на
+        диске — исполнитель работает по копии и оригинал не меняет. Каталог вне
+        этого репозитория не попадёт в Git вместе с описанием.
+      </p>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label for="model">Модель-составитель</label>
+        <input type="text" id="model" name="model" data-choices="models"
+               value="{{ form.get('model', '') }}" placeholder="начните вводить имя">
+        <p class="hint">
+          Пишет только заготовку, а не решает задачу — недорогой рассуждающей
+          модели достаточно. Стоимость заготовки будет показана.
+        </p>
+      </div>
+      <div class="field">
+        <label for="provider">Провайдер</label>
+        <select id="provider" name="provider">
+          {% for item in ["openrouter", "lmstudio", "compatible"] %}
+          <option value="{{ item }}"
+            {% if form.get('provider') == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">
+          <code>lmstudio</code> и <code>compatible</code> — локальные модели;
+          денег не стоят, но заготовка выходит грубее.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card save">
+    <button type="submit" name="action" value="draft">Подготовить заготовку</button>
+    <button type="submit" name="action" value="blank" class="quiet">
+      Создать пустой, без составителя
+    </button>
+    <span class="note">Ничего не пишется на диск, пока вы не нажмёте «Создать».</span>
+  </div>
+</form>
+
+{% if draft %}
+<h2>Заготовка</h2>
+{% if draft.cost is not none or draft.model %}
+<p class="note">
+  Составитель {{ draft.model }}
+  {% if draft.seconds %}· {{ "%.0f"|format(draft.seconds) }} с{% endif %}
+  {% if draft.cost is not none %}· ${{ "%.6f"|format(draft.cost) }}
+  {% else %}· стоимость неизвестна{% endif %}
+</p>
+{% endif %}
+<p class="question">
+  Это предложение, а не решение. Правьте что угодно — на диск оно попадёт только
+  по кнопке внизу, и только если пройдёт те же проверки, что применяет исполнитель.
+</p>
+
+<form method="post" action="/experiment/new">
+  <input type="hidden" name="name" value="{{ form.get('name', '') }}">
+  <input type="hidden" name="id" value="{{ form.get('name', '') }}">
+
+  <div class="card">
+    <div class="field">
+      <label for="d-question">Вопрос эксперимента</label>
+      <textarea id="d-question" name="question" rows="3">{{ draft.document.get('question', '') }}</textarea>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label for="d-workspace">Рабочее пространство</label>
+        <input type="text" id="d-workspace" name="workspace"
+               value="{{ draft.document.get('workspace', '') }}">
+      </div>
+      <div class="field">
+        <label for="d-task">Задача</label>
+        <input type="text" id="d-task" name="task"
+               value="{{ draft.document.get('task', form.get('name', '')) }}">
+      </div>
+      <div class="field">
+        <label for="d-case">Пример</label>
+        <input type="text" id="d-case" name="case"
+               value="{{ draft.document.get('case', '') }}">
+      </div>
+      <div class="field">
+        <label for="d-eval">Проверка ссылок в документе</label>
+        <input type="text" id="d-eval" name="evaluate.citations"
+               value="{{ (draft.document.get('evaluate') or {}).get('citations', '') }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Способы</h3>
+    {% for candidate in draft.document.get('candidates') or [] %}
+    {% set row = loop.index0 %}
+    <div class="field">
+      <label>Способ {{ row + 1 }}</label>
+      <input type="text" name="candidate.{{ row }}.id" value="{{ candidate.get('id', '') }}">
+    </div>
+    {% for stage in candidate.get('stages') or [] %}
+    {% set column = loop.index0 %}
+    <div class="grid stage-row">
+      <div class="field">
+        <label>Роль</label>
+        <select name="candidate.{{ row }}.stage.{{ column }}.role">
+          {% for role in ["SOLVER", "REVIEWER", "FIXER", "OTHER"] %}
+          <option value="{{ role }}"
+            {% if role == stage.get('role') %}selected{% endif %}>{{ role }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Модель</label>
+        <input type="text" data-choices="models" placeholder="выберите модель"
+               name="candidate.{{ row }}.stage.{{ column }}.model"
+               value="{{ stage.get('model', '') }}">
+      </div>
+      <div class="field">
+        <label>Промпт</label>
+        <input type="text" name="candidate.{{ row }}.stage.{{ column }}.prompt"
+               value="{{ stage.get('prompt', '') }}">
+      </div>
+      <div class="field">
+        <label>Правит файлы, через запятую</label>
+        <input type="text" name="candidate.{{ row }}.stage.{{ column }}.allow_edit"
+               value="{{ (stage.get('allow_edit') or []) | join(', ') }}">
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+    <p class="hint">
+      Модель у каждого этапа своя и обязательна: составитель её намеренно не
+      выбирал.
+    </p>
+  </div>
+
+  {% for filename, text in draft.prompts.items() %}
+  <div class="card">
+    <div class="field">
+      <label for="p-{{ loop.index }}">{{ filename }}</label>
+      <textarea id="p-{{ loop.index }}" name="prompt.{{ filename }}" rows="12">{{ text }}</textarea>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="card save">
+    <button type="submit" name="action" value="create">Создать</button>
+    <span class="note">
+      Каталог появится, только если описание пройдёт проверку. Иначе он удаляется
+      целиком, и вы возвращаетесь сюда с текстом ошибки.
+    </span>
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}

@@ -31,3 +31,6 @@ venv/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Deleted experiments and runs
+.trash/

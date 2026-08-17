@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import uuid
@@ -14,6 +17,7 @@ from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,8 +25,10 @@ sys.path.insert(0, str(ROOT))
 
 from ui.charts import Row, Segment, legend, stacked_bars
 from ui.store import ROLE_SLOTS, Run, Store
+from workbench.draft import draft_experiment
 from workbench.experiment import (
     STAGE_ROLES,
+    blank_document,
     dump_experiment,
     experiment_document,
     leading_comment,
@@ -30,6 +36,7 @@ from workbench.experiment import (
     read_yaml,
     reference_text,
 )
+from workbench.storage import is_hidden, move_to_trash
 
 DESCRIPTION_NAME = "experiment.yaml"
 
@@ -38,6 +45,11 @@ EXPERIMENTS = ROOT / "experiments"
 LOGS = EXECUTIONS / ".launch-logs"
 
 app = FastAPI(title="Workbench")
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).parent / "static")),
+    name="static",
+)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 store = Store(EXECUTIONS)
 
@@ -128,7 +140,9 @@ def available_experiments() -> list[str]:
     if not EXPERIMENTS.is_dir():
         return []
     return sorted(
-        path.parent.name for path in EXPERIMENTS.glob(f"*/{DESCRIPTION_NAME}")
+        path.parent.name
+        for path in EXPERIMENTS.glob(f"*/{DESCRIPTION_NAME}")
+        if not is_hidden(path, EXPERIMENTS)
     )
 
 
@@ -347,6 +361,184 @@ def artifact(execution_id: str, relative_path: str) -> Any:
     if target.stat().st_size > 2_000_000:
         raise HTTPException(status_code=413, detail="артефакт слишком велик")
     return target.read_text(encoding="utf-8", errors="replace")
+
+
+def experiment_summary(name: str) -> dict[str, Any]:
+    """Enough of a description to tell experiments apart in a list."""
+    path = EXPERIMENTS / name / DESCRIPTION_NAME
+    summary: dict[str, Any] = {"name": name, "question": "", "candidates": [], "error": ""}
+    try:
+        document = read_yaml(path)
+        summary["question"] = str(document.get("question", ""))
+        summary["workspace"] = str(document.get("workspace", ""))
+        summary["candidates"] = [
+            {
+                "id": str(item.get("id", "")),
+                "chain": " → ".join(
+                    str(stage.get("role", "?")) for stage in (item.get("stages") or [])
+                ),
+            }
+            for item in (document.get("candidates") or [])
+        ]
+    except (OSError, ValueError, KeyError, AttributeError) as error:
+        summary["error"] = str(error)
+    return summary
+
+
+@app.get("/experiments", response_class=HTMLResponse)
+def experiments_index(request: Request) -> Any:
+    return templates.TemplateResponse(
+        request=request,
+        name="experiments.html",
+        context={
+            "experiments": [experiment_summary(name) for name in available_experiments()],
+            "runs_by_experiment": {
+                experiment: len(runs) for experiment, runs in store.experiments().items()
+            },
+        },
+    )
+
+
+@app.get("/experiment/new", response_class=HTMLResponse)
+def experiment_new(request: Request) -> Any:
+    return templates.TemplateResponse(
+        request=request,
+        name="new.html",
+        context={"models": known_models(), "form": {}, "draft": None, "error": ""},
+    )
+
+
+def draft_form(fields: dict[str, list[str]]) -> dict[str, str]:
+    return {
+        key: (fields.get(key) or [""])[0].strip()
+        for key in ("name", "description", "success", "workspace", "model", "provider")
+    }
+
+
+@app.post("/experiment/new", response_class=HTMLResponse)
+async def experiment_create(request: Request) -> Any:
+    fields = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    action = (fields.get("action") or [""])[0]
+    form = draft_form(fields)
+
+    def again(error: str = "", draft: dict[str, Any] | None = None) -> Any:
+        return templates.TemplateResponse(
+            request=request,
+            name="new.html",
+            context={
+                "models": known_models(),
+                "form": form,
+                "draft": draft,
+                "error": error,
+            },
+        )
+
+    name = form["name"] or ""
+    if action in {"draft", "blank"}:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
+            return again("имя каталога: строчные латинские буквы, цифры и дефис")
+        if (EXPERIMENTS / name).exists():
+            return again(f"эксперимент {name} уже есть")
+
+    if action == "blank":
+        document = blank_document(name, form["description"], form["workspace"])
+        return again(draft={"document": document, "prompts": {"task.md": ""}, "cost": None})
+
+    if action == "draft":
+        workspace = (ROOT / form["workspace"]).resolve()
+        if not workspace.is_dir():
+            return again(f"нет каталога: {workspace}")
+        if not form["model"]:
+            return again("выберите модель-составителя")
+        try:
+            result = draft_experiment(
+                description=form["description"],
+                success=form["success"],
+                workspace=workspace,
+                model=form["model"],
+                provider=form["provider"] or "openrouter",
+            )
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            return again(f"составитель не справился: {error}")
+        document = dict(result["document"])
+        document["id"] = name
+        document["workspace"] = form["workspace"]
+        for candidate in document.get("candidates") or []:
+            for stage in candidate.get("stages") or []:
+                stage["prompt"] = f"experiments/{name}/{Path(str(stage.get('prompt'))).name}"
+        return again(
+            draft={
+                "document": document,
+                "prompts": result["prompts"],
+                "cost": result["api_cost_usd"],
+                "model": result["model"],
+                "seconds": result["wall_seconds"],
+            }
+        )
+
+    if action == "create":
+        return write_new_experiment(fields, name, again)
+
+    raise HTTPException(status_code=400, detail="неизвестное действие")
+
+
+def write_new_experiment(fields: dict[str, list[str]], name: str, again: Any) -> Any:
+    """Create the directory only once the draft passes the runner's own checks."""
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name or ""):
+        return again("имя каталога: строчные латинские буквы, цифры и дефис")
+    directory = (EXPERIMENTS / name).resolve()
+    if not directory.is_relative_to(EXPERIMENTS.resolve()):
+        raise HTTPException(status_code=400, detail="имя вне каталога experiments")
+    if directory.exists():
+        return again(f"эксперимент {name} уже есть")
+
+    prompts = {
+        key[len("prompt.") :]: value[0].replace("\r\n", "\n")
+        for key, value in fields.items()
+        if key.startswith("prompt.")
+    }
+    document = experiment_document(fields)
+
+    directory.mkdir(parents=True)
+    try:
+        for filename, text in prompts.items():
+            target = (directory / filename).resolve()
+            if not target.is_relative_to(directory) or target.suffix != ".md":
+                raise ValueError(f"промпт вне каталога эксперимента: {filename}")
+            target.write_text(text, encoding="utf-8")
+        experiment = parse_experiment(document, root=ROOT, where=str(directory))
+        (directory / DESCRIPTION_NAME).write_text(
+            dump_experiment(experiment, root=ROOT), encoding="utf-8"
+        )
+    except (ValueError, KeyError, OSError) as error:
+        shutil.rmtree(directory, ignore_errors=True)
+        return again(
+            str(error),
+            draft={"document": document, "prompts": prompts, "cost": None},
+        )
+    return RedirectResponse(url=f"/experiment/{name}?saved=true", status_code=303)
+
+
+@app.post("/experiment/{name}/delete")
+def experiment_delete(name: str) -> Any:
+    """Move an experiment to the trash. Its runs are left alone: they happened."""
+    directory = (EXPERIMENTS / name).resolve()
+    try:
+        move_to_trash(directory, EXPERIMENTS.resolve())
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return RedirectResponse(url="/experiments", status_code=303)
+
+
+@app.post("/runs/delete")
+async def runs_delete(request: Request) -> Any:
+    """Move the selected runs to the trash, so a costly result is recoverable."""
+    fields = parse_qs((await request.body()).decode("utf-8"))
+    for execution_id in fields.get("id") or []:
+        run = store.run(execution_id)
+        if run is not None:
+            move_to_trash(run.directory, EXECUTIONS.resolve())
+    return RedirectResponse(url="/compare", status_code=303)
 
 
 @app.get("/experiment/{name}", response_class=HTMLResponse)

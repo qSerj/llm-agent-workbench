@@ -16,7 +16,9 @@ identifiers unchanged.
 - `experiments/` holds one directory per experiment: a short YAML description
   next to the prompts and the workspace it runs over.
 - `ui/` is the local comparison shell. It reads envelopes and never writes them;
-  it does edit experiment descriptions, which are intent rather than fact.
+  it does create and edit experiment descriptions, which are intent rather than
+  fact. Its vendored front-end assets live in `ui/static/vendor/` and are served
+  locally: the shell makes no outbound request from the page.
 - `examples/` contains reproducible, domain-neutral execution examples.
 - `tests/` contains offline tests for the active core.
 - `docs/` contains current decisions, state, and terminology.
