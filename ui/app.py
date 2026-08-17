@@ -21,6 +21,17 @@ sys.path.insert(0, str(ROOT))
 
 from ui.charts import Row, Segment, legend, stacked_bars
 from ui.store import ROLE_SLOTS, Run, Store
+from workbench.experiment import (
+    STAGE_ROLES,
+    dump_experiment,
+    experiment_document,
+    leading_comment,
+    parse_experiment,
+    read_yaml,
+    reference_text,
+)
+
+DESCRIPTION_NAME = "experiment.yaml"
 
 EXECUTIONS = Path(os.environ.get("WORKBENCH_EXECUTIONS", ROOT / "executions"))
 EXPERIMENTS = ROOT / "experiments"
@@ -95,9 +106,7 @@ def chart_rows(runs: list[Run], measurement: str) -> list[Row]:
             for stage in run.stages
         ]
         total = run.wall_time if measurement == "wall_time" else run.api_cost
-        rows.append(
-            Row(label=f"{run.candidate_id}·r{run.repetition}", segments=segments, total=total)
-        )
+        rows.append(Row(label=run.label, segments=segments, total=total))
     return rows
 
 
@@ -115,9 +124,170 @@ def comparison_charts(runs: list[Run]) -> dict[str, str]:
 
 
 def available_experiments() -> list[str]:
+    """Directory names under experiments/ that carry a description."""
     if not EXPERIMENTS.is_dir():
         return []
-    return sorted(path.name for path in EXPERIMENTS.glob("*.yaml"))
+    return sorted(
+        path.parent.name for path in EXPERIMENTS.glob(f"*/{DESCRIPTION_NAME}")
+    )
+
+
+def description_path(name: str) -> Path:
+    """Resolve an experiment name to its description, refusing anything outside."""
+    path = (EXPERIMENTS / name / DESCRIPTION_NAME).resolve()
+    if not path.is_relative_to(EXPERIMENTS.resolve()) or not path.is_file():
+        raise HTTPException(status_code=404, detail="эксперимент не найден")
+    return path
+
+
+def normalised(document: Any, name: str) -> dict[str, Any]:
+    """Fill the fields the form always shows, so a short file still renders."""
+    if not isinstance(document, dict):
+        raise HTTPException(status_code=400, detail="описание должно быть отображением")
+    draft = dict(document)
+    draft.setdefault("id", name)
+    draft.setdefault("question", "")
+    draft.setdefault("workspace", "")
+    draft.setdefault("task", draft["id"])
+    draft.setdefault("case", Path(str(draft["workspace"])).name)
+    draft.setdefault("repetitions", 1)
+    draft.setdefault("evaluate", {})
+    candidates = []
+    for candidate in draft.get("candidates") or []:
+        stages = [dict(stage) for stage in (candidate.get("stages") or [])]
+        candidates.append({"id": candidate.get("id", ""), "stages": stages})
+    draft["candidates"] = candidates
+    draft["task"] = reference_text(draft["task"])
+    draft["case"] = reference_text(draft["case"])
+    return draft
+
+
+def blank_stage() -> dict[str, Any]:
+    return {"role": "OTHER", "model": "", "prompt": "", "allow_edit": []}
+
+
+def apply_structure(draft: dict[str, Any], action: str) -> None:
+    """Add or drop a candidate or a stage. The draft lives in the form itself."""
+    verb, _, target = action.partition(":")
+    parts = [int(item) for item in target.split(":") if item.isdigit()]
+    candidates = draft["candidates"]
+    if verb == "add-candidate":
+        candidates.append({"id": "", "stages": [blank_stage()]})
+    elif verb == "remove-candidate" and parts:
+        if 0 <= parts[0] < len(candidates):
+            del candidates[parts[0]]
+    elif verb == "add-stage" and parts:
+        if 0 <= parts[0] < len(candidates):
+            candidates[parts[0]]["stages"].append(blank_stage())
+    elif verb == "remove-stage" and len(parts) == 2:
+        row, column = parts
+        if 0 <= row < len(candidates):
+            stages = candidates[row]["stages"]
+            if 0 <= column < len(stages):
+                del stages[column]
+
+
+MODEL_CACHE: list[str] = []
+
+
+def known_models() -> list[str]:
+    """Models OpenCode can already reach, so nothing has to be typed from memory.
+
+    Asked once per process: the list costs a couple of seconds and does not
+    change under us. A failure here is not fatal — the field stays free text.
+    """
+    if MODEL_CACHE:
+        return MODEL_CACHE
+    try:
+        finished = subprocess.run(
+            ["opencode", "models"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f"список моделей недоступен: {error}")
+        return []
+    for line in finished.stdout.splitlines():
+        name = line.strip()
+        provider, _, model = name.partition("/")
+        # The description stores the model as the provider names it, without the
+        # OpenCode provider prefix that this listing carries.
+        if provider == "openrouter" and model:
+            MODEL_CACHE.append(model)
+    MODEL_CACHE.sort()
+    return MODEL_CACHE
+
+
+def workspace_files(workspace: Path, limit: int = 400) -> list[str]:
+    """Paths a stage could be allowed to edit, relative to the workspace."""
+    if not workspace.is_dir():
+        return []
+    found = []
+    for path in sorted(workspace.rglob("*")):
+        if path.is_file() and ".git" not in path.parts:
+            found.append(str(path.relative_to(workspace)))
+        if len(found) >= limit:
+            break
+    return found
+
+
+def prompt_files(directory: Path) -> dict[str, str]:
+    """Every prompt kept beside the description, ready to edit."""
+    return {
+        path.name: path.read_text(encoding="utf-8")
+        for path in sorted(directory.glob("*.md"))
+    }
+
+
+def external_prompts(draft: dict[str, Any], directory: Path) -> list[str]:
+    """Prompts living outside the experiment directory: shown, never edited."""
+    found = []
+    for candidate in draft["candidates"]:
+        for stage in candidate["stages"]:
+            prompt = str(stage.get("prompt") or "")
+            if not prompt:
+                continue
+            resolved = (ROOT / prompt).resolve()
+            if not resolved.is_relative_to(directory) and prompt not in found:
+                found.append(prompt)
+    return found
+
+
+def editor_context(
+    request: Request,
+    name: str,
+    draft: dict[str, Any],
+    prompts: dict[str, str],
+    error: str = "",
+    saved: bool = False,
+) -> Any:
+    directory = (EXPERIMENTS / name).resolve()
+    return templates.TemplateResponse(
+        request=request,
+        name="experiment.html",
+        context={
+            "name": name,
+            "draft": draft,
+            "prompts": prompts,
+            "external": external_prompts(draft, directory),
+            "roles": sorted(STAGE_ROLES),
+            "models": known_models(),
+            "prompt_paths": sorted(
+                str(item.relative_to(ROOT)) for item in directory.glob("*.md")
+            ),
+            "workspace_paths": workspace_files(
+                (ROOT / str(draft.get("workspace") or "")).resolve()
+            ),
+            "columns": max(
+                (len(item["stages"]) for item in draft["candidates"]), default=0
+            ),
+            "error": error,
+            "saved": saved,
+            "directory": directory,
+        },
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -179,6 +349,68 @@ def artifact(execution_id: str, relative_path: str) -> Any:
     return target.read_text(encoding="utf-8", errors="replace")
 
 
+@app.get("/experiment/{name}", response_class=HTMLResponse)
+def experiment_editor(request: Request, name: str, saved: bool = False) -> Any:
+    path = description_path(name)
+    draft = normalised(read_yaml(path), name)
+    return editor_context(
+        request, name, draft, prompt_files(path.parent), saved=saved
+    )
+
+
+@app.post("/experiment/{name}", response_class=HTMLResponse)
+async def experiment_save(request: Request, name: str) -> Any:
+    path = description_path(name)
+    directory = path.parent
+    fields = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+    action = (fields.get("action") or ["save"])[0]
+
+    draft = normalised(experiment_document(fields), name)
+    edited = {
+        key[len("prompt.") :]: value[0].replace("\r\n", "\n")
+        for key, value in fields.items()
+        if key.startswith("prompt.")
+    }
+    new_name = (fields.get("new_prompt_name") or [""])[0].strip()
+    if new_name:
+        edited[new_name] = (
+            (fields.get("new_prompt_text") or [""])[0].replace("\r\n", "\n")
+        )
+
+    if action != "save":
+        apply_structure(draft, action)
+        return editor_context(request, name, draft, edited or prompt_files(directory))
+
+    # Prompts are written first so a stage may point at a file this very edit
+    # creates. A draft that fails validation is rolled back to the byte, which is
+    # what "nothing is written unless it is valid" has to mean here.
+    restore: dict[Path, str | None] = {}
+    try:
+        for relative, text in edited.items():
+            target = (directory / relative).resolve()
+            if not target.is_relative_to(directory) or target.suffix != ".md":
+                raise ValueError(f"промпт вне каталога эксперимента: {relative}")
+            restore[target] = (
+                target.read_text(encoding="utf-8") if target.is_file() else None
+            )
+            target.write_text(text, encoding="utf-8")
+
+        experiment = parse_experiment(
+            experiment_document(fields), root=ROOT, where=str(path)
+        )
+    except (ValueError, KeyError, OSError) as error:
+        for target, previous in restore.items():
+            if previous is None:
+                target.unlink(missing_ok=True)
+            else:
+                target.write_text(previous, encoding="utf-8")
+        return editor_context(request, name, draft, edited, error=str(error))
+
+    header = leading_comment(path.read_text(encoding="utf-8"))
+    path.write_text(dump_experiment(experiment, root=ROOT, header=header), encoding="utf-8")
+    return RedirectResponse(url=f"/experiment/{name}?saved=true", status_code=303)
+
+
 @app.post("/launch")
 async def launch(request: Request) -> Any:
     # The form is parsed here rather than with fastapi.Form so the shell needs
@@ -187,10 +419,7 @@ async def launch(request: Request) -> Any:
     experiment = (fields.get("experiment") or [""])[0]
     candidates = (fields.get("candidates") or [""])[0]
 
-    path = (EXPERIMENTS / experiment).resolve()
-    if not path.is_relative_to(EXPERIMENTS.resolve()) or not path.is_file():
-        raise HTTPException(status_code=400, detail="неизвестный эксперимент")
-
+    path = description_path(experiment)
     selected = [item.strip() for item in candidates.split(",") if item.strip()]
     command = [sys.executable, str(ROOT / "tools" / "run_chain.py"), str(path)]
     command += ["--output", str(EXECUTIONS)]

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+
+<h1>{{ name }}</h1>
+<p class="note">{{ directory }}</p>
+
+{% if error %}
+<div class="card notice bad">
+  <strong>Не сохранено.</strong> Описание осталось прежним, промпты возвращены.
+  <pre style="margin:0.5rem 0 0">{{ error }}</pre>
+</div>
+{% elif saved %}
+<div class="card notice good">Сохранено.</div>
+{% endif %}
+
+<datalist id="models">
+  {% for model in models %}<option value="{{ model }}"></option>{% endfor %}
+</datalist>
+<datalist id="prompt-paths">
+  {% for path in prompt_paths %}<option value="{{ path }}"></option>{% endfor %}
+</datalist>
+<datalist id="workspace-paths">
+  {% for path in workspace_paths %}<option value="{{ path }}"></option>{% endfor %}
+</datalist>
+
+<form method="post" action="/experiment/{{ name }}">
+
+<div class="card">
+  <div class="field">
+    <label for="question">Вопрос эксперимента</label>
+    <textarea id="question" name="question" rows="3">{{ draft.question }}</textarea>
+  </div>
+  <div class="grid">
+    <div class="field">
+      <label for="workspace">Рабочее пространство</label>
+      <input type="text" id="workspace" name="workspace" value="{{ draft.workspace }}">
+    </div>
+    <div class="field">
+      <label for="evaluate">Проверка ссылок в документе</label>
+      <input type="text" id="evaluate" name="evaluate.citations"
+             value="{{ draft.evaluate.get('citations', '') }}">
+    </div>
+    <div class="field">
+      <label for="task">Задача</label>
+      <input type="text" id="task" name="task" value="{{ draft.task }}">
+    </div>
+    <div class="field">
+      <label for="case">Пример</label>
+      <input type="text" id="case" name="case" value="{{ draft.case }}">
+    </div>
+    <div class="field">
+      <label for="repetitions">Повторений</label>
+      <input type="text" id="repetitions" name="repetitions" value="{{ draft.repetitions }}">
+    </div>
+  </div>
+  <input type="hidden" name="id" value="{{ draft.id }}">
+  <p class="note">
+    Путь к пространству может вести куда угодно на диске, в том числе за пределы
+    репозитория. Внешнее пространство не переносится вместе с описанием.
+  </p>
+</div>
+
+<h2>Способы решения</h2>
+<div class="card">
+  <div class="chart-wrap">
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>Способ</th>
+        {% for column in range(columns) %}<th>Этап {{ column + 1 }}</th>{% endfor %}
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for candidate in draft.candidates %}
+      <tr>
+        <td class="candidate">
+          <input type="text" name="candidate.{{ loop.index0 }}.id"
+                 value="{{ candidate.id }}" placeholder="имя способа">
+        </td>
+        {% set row = loop.index0 %}
+        {% for stage in candidate.stages %}
+        {% set column = loop.index0 %}
+        <td class="stage slot-{{ {'SOLVER': 1, 'REVIEWER': 2, 'FIXER': 3}.get(stage.role, 4) }}">
+          <select name="candidate.{{ row }}.stage.{{ column }}.role">
+            {% for role in roles %}
+            <option value="{{ role }}" {% if role == stage.role %}selected{% endif %}>{{ role }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" list="models" placeholder="модель"
+                 name="candidate.{{ row }}.stage.{{ column }}.model"
+                 value="{{ stage.model }}">
+          <input type="text" list="prompt-paths" placeholder="путь к промпту"
+                 name="candidate.{{ row }}.stage.{{ column }}.prompt"
+                 value="{{ stage.prompt }}">
+          <p class="cell-label">правит файлы</p>
+          {% for path in stage.allow_edit %}
+          <input type="text" list="workspace-paths"
+                 name="candidate.{{ row }}.stage.{{ column }}.allow_edit"
+                 value="{{ path }}">
+          {% endfor %}
+          <input type="text" list="workspace-paths" placeholder="ещё файл"
+                 name="candidate.{{ row }}.stage.{{ column }}.allow_edit" value="">
+          <button type="submit" name="action" class="quiet"
+                  value="remove-stage:{{ row }}:{{ column }}">убрать этап</button>
+        </td>
+        {% endfor %}
+        {% for _ in range(columns - candidate.stages | length) %}<td class="stage empty"></td>{% endfor %}
+        <td class="actions">
+          <button type="submit" name="action" class="quiet"
+                  value="add-stage:{{ row }}">+ этап</button>
+          <button type="submit" name="action" class="quiet"
+                  value="remove-candidate:{{ row }}">убрать способ</button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="note">
+    <button type="submit" name="action" value="add-candidate" class="quiet">+ способ</button>
+    Цепочка — последовательность: пространство этапа N+1 это выход этапа N.
+  </p>
+</div>
+
+<h2>Промпты</h2>
+{% for filename, text in prompts.items() %}
+<div class="card">
+  <div class="field">
+    <label for="prompt-{{ loop.index }}">{{ filename }}</label>
+    <textarea id="prompt-{{ loop.index }}" name="prompt.{{ filename }}"
+              rows="{{ [text.splitlines() | length + 2, 24] | min }}">{{ text }}</textarea>
+  </div>
+</div>
+{% else %}
+<div class="card"><p class="empty">Рядом с описанием нет файлов <code>.md</code>.</p></div>
+{% endfor %}
+
+<div class="card">
+  <div class="field">
+    <label for="new-prompt">Новый промпт — имя файла и содержимое</label>
+    <input type="text" id="new-prompt" name="new_prompt_name" placeholder="reviewer-v3.md">
+    <textarea name="new_prompt_text" rows="4" placeholder="Текст нового промпта"></textarea>
+  </div>
+</div>
+
+{% if external %}
+<div class="card">
+  <p class="note">Промпты вне каталога эксперимента правятся только на диске:</p>
+  <ul class="note">{% for item in external %}<li><code>{{ item }}</code></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card save">
+  <button type="submit" name="action" value="save">Сохранить</button>
+  <span class="note">
+    Черновик проверяется до записи. Если он негоден, на диске не меняется ничего.
+  </span>
+</div>
+
+</form>
+{% endblock %}

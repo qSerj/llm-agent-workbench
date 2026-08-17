@@ -15,7 +15,8 @@ identifiers unchanged.
 - `tools/` contains the chain runner and narrow MLflow and OpenTelemetry integrations.
 - `experiments/` holds one directory per experiment: a short YAML description
   next to the prompts and the workspace it runs over.
-- `ui/` is the local comparison shell; it reads envelopes and never writes them.
+- `ui/` is the local comparison shell. It reads envelopes and never writes them;
+  it does edit experiment descriptions, which are intent rather than fact.
 - `examples/` contains reproducible, domain-neutral execution examples.
 - `tests/` contains offline tests for the active core.
 - `docs/` contains current decisions, state, and terminology.

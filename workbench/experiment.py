@@ -1,12 +1,17 @@
-"""Read a short experiment description and turn it into runnable candidates.
+"""Read and write a short experiment description, and turn it into candidates.
 
 The description is deliberately small: a human question, the workspace under
 test, and the candidates being compared. A field is added when a real run needed
 it, not because a hypothetical scenario might.
+
+Writing is here rather than in the shell so that both directions stay covered by
+the offline tests: CI installs ``requirements-lab.txt`` only, and the shell's web
+stack is not part of it.
 """
 
 from __future__ import annotations
 
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -14,6 +19,9 @@ from typing import Any
 from workbench.chain import StageSpec
 
 STAGE_ROLES = {"SOLVER", "REVIEWER", "FIXER", "OTHER"}
+
+# The width hand-written descriptions already wrap to.
+LINE_WIDTH = 80
 
 
 @dataclass
@@ -90,8 +98,19 @@ def parse_stage(raw: Any, position: int, candidate_id: str) -> StageSpec:
 
 def load_experiment(path: Path, root: Path | None = None) -> Experiment:
     """Load an experiment, resolving relative paths against ``root``."""
+    return parse_experiment(read_yaml(path), root=root, where=str(path))
+
+
+def parse_experiment(
+    document: Any, root: Path | None = None, where: str = "experiment"
+) -> Experiment:
+    """Validate a description already in memory, resolving paths against ``root``.
+
+    Kept separate from ``load_experiment`` so an editor can check a draft before
+    anything reaches the disk.
+    """
     root = (root or Path.cwd()).resolve()
-    document = read_yaml(path)
+    path = where
     if not isinstance(document, dict):
         raise ValueError(f"{path}: an experiment must be a mapping")
 
@@ -147,3 +166,190 @@ def load_experiment(path: Path, root: Path | None = None) -> Experiment:
             for key, value in (document.get("evaluate") or {}).items()
         },
     )
+
+
+def leading_comment(text: str) -> str:
+    """Return the comment block a description opens with, blank line included.
+
+    An editor that dropped it would silently discard the note explaining what the
+    experiment reproduces and where its reference numbers live.
+    """
+    lines: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("#"):
+            lines.append(line)
+            continue
+        if not line.strip() and lines:
+            lines.append("")
+            continue
+        break
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
+def relative_to(path: Path, root: Path) -> str:
+    """Inside the repository a path stays relative; outside it stays absolute."""
+    resolved = Path(path).resolve()
+    if resolved.is_relative_to(root):
+        return str(resolved.relative_to(root))
+    return str(resolved)
+
+
+def reference_value(reference: dict[str, str]) -> Any:
+    """Write the short form back as short, the versioned form as a mapping."""
+    if reference.get("version", "1") == "1":
+        return reference["id"]
+    return dict(reference)
+
+
+def reference_text(value: Any) -> str:
+    """Render a task or case reference for a form field: ``name`` or ``name@2``."""
+    if isinstance(value, dict):
+        version = str(value.get("version", "1"))
+        name = str(value.get("id", ""))
+        return name if version == "1" else f"{name}@{version}"
+    return str(value)
+
+
+def reference_field(text: str) -> Any:
+    """Read back what ``reference_text`` wrote."""
+    if "@" in text:
+        name, _, version = text.rpartition("@")
+        return {"id": name, "version": version}
+    return text
+
+
+def folded(value: str, indent: str = "  ") -> list[str]:
+    """A folded block scalar, wrapped where a hand-written file would wrap."""
+    return [
+        indent + line
+        for line in textwrap.wrap(
+            " ".join(value.split()), width=LINE_WIDTH - len(indent)
+        )
+    ]
+
+
+def dump_experiment(
+    experiment: Experiment, root: Path | None = None, header: str = ""
+) -> str:
+    """Serialise a description in the style the hand-written files already use.
+
+    Written by hand rather than with ``yaml.dump`` because the field order, the
+    folded question and the leading comment all carry meaning that a generic
+    dumper would rearrange, and because pulling in a round-tripping YAML library
+    for eight fields would cost more than it returns.
+    """
+    root = (root or Path.cwd()).resolve()
+    lines: list[str] = []
+    if header:
+        lines.extend(header.splitlines())
+        lines.append("")
+
+    lines.append(f"id: {experiment.id}")
+    lines.append("question: >-")
+    lines.extend(folded(experiment.question))
+    lines.append("")
+    lines.append(f"workspace: {relative_to(experiment.workspace, root)}")
+    lines.append(f"task: {reference_value(experiment.task)}")
+    lines.append(f"case: {reference_value(experiment.case)}")
+    if experiment.repetitions != 1:
+        lines.append(f"repetitions: {experiment.repetitions}")
+
+    if experiment.evaluate:
+        lines.append("")
+        lines.append("evaluate:")
+        for name, target in experiment.evaluate.items():
+            lines.append(f"  {name}: {target}")
+
+    lines.append("")
+    lines.append("candidates:")
+    for candidate in experiment.candidates:
+        lines.append(f"  - id: {candidate.id}")
+        lines.append("    stages:")
+        for stage in candidate.stages:
+            allow = ", ".join(stage.allow_edit)
+            lines.append(f"      - role: {stage.role}")
+            lines.append(f"        model: {stage.model}")
+            lines.append(f"        prompt: {relative_to(stage.prompt, root)}")
+            lines.append(f"        allow_edit: [{allow}]")
+            if stage.provider != "openrouter":
+                lines.append(f"        provider: {stage.provider}")
+            if stage.base_url:
+                lines.append(f"        base_url: {stage.base_url}")
+            if stage.api_key_env:
+                lines.append(f"        api_key_env: {stage.api_key_env}")
+        lines.append("")
+
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines) + "\n"
+
+
+def indexed(fields: dict[str, list[str]], prefix: str) -> list[str]:
+    """Sorted numeric indices present under ``prefix``, e.g. ``candidate.0.id``."""
+    found: set[int] = set()
+    for key in fields:
+        if not key.startswith(prefix):
+            continue
+        head = key[len(prefix):].split(".", 1)[0]
+        if head.isdigit():
+            found.add(int(head))
+    return [str(item) for item in sorted(found)]
+
+
+def one(fields: dict[str, list[str]], key: str, default: str = "") -> str:
+    values = fields.get(key) or [default]
+    return values[0].strip()
+
+
+def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
+    """Assemble a description from the flat form fields the shell posts.
+
+    The shell parses its own urlencoded body, so the fields arrive as the plain
+    ``{name: [value]}`` mapping ``urllib.parse.parse_qs`` produces.
+    """
+    candidates: list[dict[str, Any]] = []
+    for index in indexed(fields, "candidate."):
+        stages: list[dict[str, Any]] = []
+        for position in indexed(fields, f"candidate.{index}.stage."):
+            stem = f"candidate.{index}.stage.{position}"
+            stage: dict[str, Any] = {
+                "role": one(fields, f"{stem}.role", "OTHER").upper(),
+                "model": one(fields, f"{stem}.model"),
+                "prompt": one(fields, f"{stem}.prompt"),
+                # One input per path, but a single comma-separated field is still
+                # accepted: both shapes arrive as values of the same name.
+                "allow_edit": [
+                    item.strip()
+                    for value in fields.get(f"{stem}.allow_edit", [])
+                    for item in value.split(",")
+                    if item.strip()
+                ],
+            }
+            for optional in ("provider", "base_url", "api_key_env"):
+                value = one(fields, f"{stem}.{optional}")
+                if value:
+                    stage[optional] = value
+            stages.append(stage)
+        candidates.append({"id": one(fields, f"candidate.{index}.id"), "stages": stages})
+
+    document: dict[str, Any] = {
+        "id": one(fields, "id"),
+        "question": one(fields, "question"),
+        "workspace": one(fields, "workspace"),
+        "task": reference_field(one(fields, "task")),
+        "case": reference_field(one(fields, "case")),
+        "candidates": candidates,
+    }
+    repetitions = one(fields, "repetitions", "1")
+    document["repetitions"] = int(repetitions) if repetitions.isdigit() else repetitions
+
+    evaluate = {
+        key[len("evaluate."):]: one(fields, key)
+        for key in fields
+        if key.startswith("evaluate.") and one(fields, key)
+    }
+    if evaluate:
+        document["evaluate"] = evaluate
+    return document
