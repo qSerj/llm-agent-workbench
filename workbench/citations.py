@@ -5,6 +5,13 @@ rewrote a correct citation `ProfileUsageExample.cs:5` into `:11` in a file that
 has ten lines, while the grader still returned a perfect score. Run it before
 any model-based review — existence of a line is verified more reliably and far
 more cheaply by a program.
+
+What it does not do, and must not be read as doing: it never compares the cited
+line with the claim it is attached to. A PASS says the citations are well formed
+and point at real lines, which measures citing discipline, not truthfulness — a
+document of pure invention with sound citations passes. Whether a claim is
+invented, or whether something that should be documented is missing, is a
+different measurement and belongs to a different kind of evidence.
 """
 
 from __future__ import annotations
