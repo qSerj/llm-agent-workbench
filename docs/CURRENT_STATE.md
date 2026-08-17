@@ -48,14 +48,15 @@ YAML в `experiments/` описывает вопрос, рабочее прос�
 
 ## Чего пока нет
 
-- проведённого прогона на новом исполнителе: нужен ключ провайдера;
+- проведённого прогона на новом исполнителе;
 - автоматического составления цепочек;
 - постоянной установки и согласованного представления MLflow;
 - достаточного набора задач разных типов;
 - принятой методики сравнения качества.
 
 Ближайший шаг — воспроизвести опыт `solver → reviewer → fixer` от 2026-08-13
-через `experiments/solver-reviewer-fixer.yaml` и сверить с эталонными числами в
+через `experiments/solver-reviewer-fixer/experiment.yaml` и сверить с эталонными
+числами в
 `archive/prototype-r4.2/experiments/solver_reviewer_fixer/results-2026-08-13.json`.
 
 Для работы на нескольких машинах принято направление
@@ -77,8 +78,12 @@ PyYAML, поэтому всё, кроме проверки синтаксиса,
 `.research-env`. Прогон эксперимента и оболочка сравнения:
 
 ```bash
-.research-env/bin/python3 tools/run_chain.py experiments/solver-reviewer-fixer.yaml
+.research-env/bin/python3 tools/run_chain.py experiments/solver-reviewer-fixer/experiment.yaml
 .research-env/bin/uvicorn ui.app:app --port 8765
 ```
 
-Прогон требует `opencode` в PATH и `OPENROUTER_API_KEY` в окружении.
+Прогон требует `opencode` в PATH и провайдера, вошедшего через
+`opencode auth login`. Ключ в окружении не нужен: для `provider: openrouter`
+исполнитель не пишет `apiKey` в конфигурацию вовсе, и opencode берёт учётку из
+своего хранилища. Переменная окружения читается только этапом, объявившим
+`api_key_env`.

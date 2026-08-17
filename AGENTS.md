@@ -13,7 +13,8 @@ identifiers unchanged.
 - `schemas/` contains versioned JSON Schema contracts; keep v1 backward-compatible.
 - `workbench/` validates cards, runs multi-stage candidates, and projects data externally.
 - `tools/` contains the chain runner and narrow MLflow and OpenTelemetry integrations.
-- `experiments/` contains short YAML experiment descriptions.
+- `experiments/` holds one directory per experiment: a short YAML description
+  next to the prompts and the workspace it runs over.
 - `ui/` is the local comparison shell; it reads envelopes and never writes them.
 - `examples/` contains reproducible, domain-neutral execution examples.
 - `tests/` contains offline tests for the active core.
@@ -44,12 +45,13 @@ Run an experiment and compare candidates. The runner needs PyYAML, so on a host
 without `pip` use the venv here too:
 
 ```bash
-.research-env/bin/python3 tools/run_chain.py experiments/solver-reviewer-fixer.yaml
+.research-env/bin/python3 tools/run_chain.py experiments/solver-reviewer-fixer/experiment.yaml
 .research-env/bin/uvicorn ui.app:app --port 8765     # http://127.0.0.1:8765
 ```
 
-The chain runner needs `opencode` on the path and provider credentials in the
-environment. The optional audio example requires `ffmpeg` and `ffprobe` and
+The chain runner needs `opencode` on the path and a provider signed in through
+`opencode auth login`; it reads no credentials from the environment unless a
+stage declares `api_key_env`. The optional audio example requires `ffmpeg` and `ffprobe` and
 produces execution cards outside the repository.
 
 ## Coding Style & Naming Conventions

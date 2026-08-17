@@ -13,8 +13,21 @@
 способ. Карточка — существующий `schemas/execution-envelope-v1.schema.json`,
 она не менялась.
 
+Эксперимент живёт каталогом: описание, промпты ролей и рабочее пространство
+лежат рядом, а не разбросаны по репозиторию.
+
 ```
-experiments/*.yaml   намерение до запуска
+experiments/solver-reviewer-fixer/
+  experiment.yaml    намерение до запуска
+  task.md            формулировка задачи
+  reviewer.md        промпты ролей
+  reviewer-v2.md
+  fixer.md
+  workspace/         вход, который получает первый этап
+```
+
+```
+experiments/*/experiment.yaml   намерение до запуска
         ↓  tools/run_chain.py
 execution-envelope.json   факт после запуска
         ↓  ui/
@@ -26,7 +39,7 @@ execution-envelope.json   факт после запуска
 ```yaml
 id: solver-reviewer-fixer-task01
 question: Устраняет ли цепочка фактические ошибки лучше одиночного исполнителя?
-workspace: archive/prototype-r4.2/fixture
+workspace: experiments/solver-reviewer-fixer/workspace
 task: task-01-repository-discovery      # необязательно, по умолчанию — id
 case: interleaver-fixture               # необязательно, по умолчанию — имя каталога
 repetitions: 1                          # необязательно
@@ -37,7 +50,7 @@ candidates:
     stages:
       - role: SOLVER
         model: xiaomi/mimo-v2.5
-        prompt: archive/prototype-r4.2/tasks/01.md
+        prompt: experiments/solver-reviewer-fixer/task.md
         allow_edit: [docs/01-interleavers.md]
 ```
 
@@ -84,4 +97,5 @@ candidates:
 `tests/test_chain.py`, `tests/test_experiment.py`, `tests/test_citations.py` —
 сборка карточки со связанными этапами, распределение измерений по этапам,
 отклонение обхода путей и шаблонов в `allow_edit`, неизвестная стоимость,
-разбор описания. Контрольный пример: `experiments/solver-reviewer-fixer.yaml`.
+разбор описания. Контрольный пример:
+`experiments/solver-reviewer-fixer/experiment.yaml`.
