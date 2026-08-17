@@ -39,6 +39,24 @@ class Run:
     directory: Path
     envelope: dict[str, Any]
     stages: list[Stage]
+    stamp: str = ""
+
+    @property
+    def label(self) -> str:
+        return f"{self.candidate_id}·r{self.repetition}"
+
+    @property
+    def day(self) -> str:
+        """When the run happened, taken from the envelope rather than the path.
+
+        The directory stamp only exists for runs written after runs began to be
+        grouped by day; the envelope has carried the time all along.
+        """
+        return self.started_at[:10]
+
+    @property
+    def moment(self) -> str:
+        return self.started_at[:16].replace("T", " ")
 
     @property
     def status(self) -> str:
@@ -89,6 +107,17 @@ class Run:
         return evaluation["result"]["verdict"] if evaluation else None
 
     @property
+    def citation_checks(self) -> int | None:
+        """How many claims the check could look at.
+
+        Zero is not the same as no evaluation: it means the document made no
+        claim tied to ``path:line``, so there was nothing to verify. Reading that
+        as a missing measurement would hide a real finding about the candidate.
+        """
+        evaluation = self.evaluation("citations")
+        return len(evaluation["result"].get("checks", [])) if evaluation else None
+
+    @property
     def artifacts(self) -> list[dict[str, Any]]:
         return self.envelope["artifacts"]
 
@@ -103,7 +132,20 @@ def stage_value(observations: list[dict[str, Any]], stage_id: str, name: str) ->
     return None
 
 
-def load_run(envelope_path: Path) -> Run:
+def placement(envelope_path: Path, root: Path) -> tuple[str, str]:
+    """Read the experiment and the run stamp off the path.
+
+    Runs are grouped by day — ``<experiment>/<date>/<candidate>-r<n>`` — but runs
+    written before that grouping existed sit one level higher, and the shell has
+    to keep showing them.
+    """
+    parts = envelope_path.parent.relative_to(root).parts
+    if len(parts) >= 3:
+        return parts[0], parts[1]
+    return (parts[0] if parts else ""), ""
+
+
+def load_run(envelope_path: Path, root: Path | None = None) -> Run:
     envelope = json.loads(envelope_path.read_text(encoding="utf-8"))
     observations = envelope["observations"]
     stages = [
@@ -122,14 +164,18 @@ def load_run(envelope_path: Path) -> Run:
         for item in envelope.get("stages", [])
     ]
     directory = envelope_path.parent
+    experiment_id, stamp = placement(
+        envelope_path, root if root is not None else directory.parent.parent
+    )
     return Run(
         execution_id=envelope["execution_id"],
-        experiment_id=directory.parent.name,
+        experiment_id=experiment_id,
         candidate_id=envelope["candidate"]["id"],
         repetition=envelope["repetition"],
         directory=directory,
         envelope=envelope,
         stages=stages,
+        stamp=stamp,
     )
 
 
@@ -143,12 +189,23 @@ class Store:
         if not self.root.is_dir():
             return []
         found: list[Run] = []
-        for path in sorted(self.root.glob(f"*/*/{ENVELOPE_NAME}")):
+        for path in sorted(self.root.rglob(ENVELOPE_NAME)):
+            # A run keeps copies of the workspace; an envelope that a candidate
+            # happened to produce inside one is data, not a run of ours.
+            if {"input-workspace", "stages"} & set(path.parts):
+                continue
             try:
-                found.append(load_run(path))
+                found.append(load_run(path, self.root))
             except (OSError, ValueError, KeyError) as error:
                 print(f"пропущена карточка {path}: {error}")
-        found.sort(key=lambda run: (run.experiment_id, run.candidate_id, run.repetition))
+        found.sort(
+            key=lambda run: (
+                run.experiment_id,
+                run.started_at,
+                run.candidate_id,
+                run.repetition,
+            )
+        )
         return found
 
     def experiments(self) -> dict[str, list[Run]]:

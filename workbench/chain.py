@@ -120,6 +120,21 @@ def permission_config(allow_edit: list[str]) -> dict[str, Any]:
     }
 
 
+def run_directory(output: Path, experiment_id: str, today: str) -> Path:
+    """Group a run by the day it happened, so a repeat never overwrites a result.
+
+    ``run_candidate`` refuses to write over an existing directory on purpose, so
+    a second run on the same day gets a numbered suffix instead of colliding.
+    """
+    base = output / experiment_id / today
+    if not base.exists():
+        return base
+    attempt = 2
+    while (candidate := base.with_name(f"{today}-{attempt}")).exists():
+        attempt += 1
+    return candidate
+
+
 def build_opencode_config(spec: StageSpec) -> tuple[dict[str, Any], str]:
     """Return the OpenCode configuration and the model name it should run."""
     config: dict[str, Any] = {

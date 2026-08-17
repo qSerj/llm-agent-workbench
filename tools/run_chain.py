@@ -6,13 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from workbench.chain import run_candidate
+from workbench.chain import run_candidate, run_directory
 from workbench.citations import citation_evaluation
 from workbench.envelope import file_artifact, validate_envelope
 from workbench.experiment import Experiment, load_experiment
@@ -113,12 +114,14 @@ def main() -> None:
     print(f"Рабочее пространство: {experiment.workspace}")
     print(f"Способов: {len(selected)}, повторений: {experiment.repetitions}")
 
+    today = datetime.now(UTC).date().isoformat()
+    run_root = run_directory(arguments.output, experiment.id, today)
+    print(f"Каталог прогона: {run_root}")
+
     produced: list[tuple[str, dict[str, Any]]] = []
     for candidate in selected:
         for repetition in range(1, experiment.repetitions + 1):
-            directory = (
-                arguments.output / experiment.id / f"{candidate.id}-r{repetition}"
-            )
+            directory = run_root / f"{candidate.id}-r{repetition}"
             envelope = run_candidate(
                 experiment_id=experiment.id,
                 candidate_id=candidate.id,

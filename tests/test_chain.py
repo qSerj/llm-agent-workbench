@@ -17,6 +17,7 @@ from workbench.chain import (
     build_envelope,
     collect_usage_from_jsonl,
     permission_config,
+    run_directory,
     total_cost,
 )
 from workbench.envelope import validate_envelope, verify_artifacts
@@ -210,6 +211,26 @@ class UsageTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertEqual(collect_usage_from_jsonl(path)["tool_calls"], 1)
+
+
+class RunDirectoryTests(unittest.TestCase):
+    """Runs are grouped by day, and a repeat never lands on an earlier result."""
+
+    def test_first_run_of_the_day_uses_the_plain_date(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            directory = run_directory(root, "demo", "2026-08-17")
+            self.assertEqual(directory, root / "demo" / "2026-08-17")
+
+    def test_a_repeat_on_the_same_day_gets_its_own_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "demo" / "2026-08-17").mkdir(parents=True)
+            second = run_directory(root, "demo", "2026-08-17")
+            self.assertEqual(second, root / "demo" / "2026-08-17-2")
+            second.mkdir()
+            third = run_directory(root, "demo", "2026-08-17")
+            self.assertEqual(third, root / "demo" / "2026-08-17-3")
 
 
 if __name__ == "__main__":
