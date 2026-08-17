@@ -213,7 +213,11 @@ class ExperimentDocumentTests(unittest.TestCase):
         self.assertEqual(document["repetitions"], 2)
         self.assertEqual(document["task"], "task-01")
         self.assertEqual(document["case"], {"id": "fixture", "version": "2"})
-        self.assertEqual(document["evaluate"], {"citations": "docs/report.md"})
+        # The registry keeps one shape inside; the shorthand is a writing style,
+        # restored by dump_experiment when an evaluation has only a document.
+        self.assertEqual(
+            document["evaluate"], {"citations": {"document": "docs/report.md"}}
+        )
         stage = document["candidates"][0]["stages"][0]
         self.assertEqual(stage["role"], "SOLVER")
         self.assertEqual(stage["allow_edit"], ["docs/report.md", "docs/notes.md"])

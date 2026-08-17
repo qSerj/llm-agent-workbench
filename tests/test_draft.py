@@ -11,7 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from workbench.draft import build_prompt, extract_json, file_tree, reply_text
+from workbench.draft import build_prompt, file_tree
+from workbench.modelreply import extract_json, reply_text
 
 
 class ExtractJsonTests(unittest.TestCase):

@@ -12,35 +12,16 @@ drafting is measured by the same code that measures a stage.
 
 from __future__ import annotations
 
-import json
-import re
-import shutil
-import tempfile
 from pathlib import Path
 from typing import Any
 
-from workbench.chain import (
-    StageSpec,
-    build_opencode_config,
-    collect_usage_from_jsonl,
-    stream_opencode,
-)
+from workbench.modelreply import SILENT_PERMISSIONS, ask_model, extract_json
 
 # The drafting model writes a proposal and touches nothing: it is handed the
 # workspace as text, never as a directory it may open.
-DRAFT_PERMISSIONS = {
-    "read": "deny",
-    "glob": "deny",
-    "grep": "deny",
-    "list": "deny",
-    "edit": "deny",
-    "bash": "deny",
-    "webfetch": "deny",
-    "websearch": "deny",
-}
+DRAFT_PERMISSIONS = SILENT_PERMISSIONS
 
 MAX_TREE_ENTRIES = 300
-FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 INSTRUCTIONS = """\
 Ты помогаешь исследователю подготовить заготовку эксперимента, который сравнивает
@@ -116,31 +97,6 @@ def build_prompt(description: str, success: str, workspace: Path) -> str:
     return "\n\n".join(parts)
 
 
-def extract_json(text: str) -> dict[str, Any]:
-    """Read the object out of a reply that may be wrapped in prose or a fence."""
-    match = FENCE.search(text)
-    if match:
-        return json.loads(match.group(1))
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end <= start:
-        raise ValueError("в ответе составителя нет объекта JSON")
-    return json.loads(text[start : end + 1])
-
-
-def reply_text(log_path: Path) -> str:
-    """Concatenate what the model said, ignoring its tool and step events."""
-    said: list[str] = []
-    for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if event.get("type") == "text":
-            said.append(str((event.get("part") or {}).get("text", "")))
-    return "\n".join(said)
-
-
 def draft_experiment(
     description: str,
     success: str,
@@ -156,48 +112,19 @@ def draft_experiment(
     The model runs in an empty directory with every tool denied: it is here to
     write a proposal, not to touch the workspace it is describing.
     """
-    spec = StageSpec(
-        role="OTHER",
+    answer = ask_model(
+        build_prompt(description, success, workspace),
         model=model,
-        prompt=Path("(draft)"),
-        allow_edit=[],
         provider=provider,
         base_url=base_url,
+        permission=DRAFT_PERMISSIONS,
+        opencode=opencode,
+        heartbeat=heartbeat,
     )
-    config, model_name = build_opencode_config(spec, permission=DRAFT_PERMISSIONS)
+    if answer["exit_code"] != 0 and not answer["text"]:
+        raise ValueError(f"составитель завершился с кодом {answer['exit_code']}")
 
-    scratch = Path(tempfile.mkdtemp(prefix="workbench-draft-"))
-    try:
-        (scratch / "opencode.json").write_text(
-            json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-        log_path = scratch / "opencode.jsonl"
-        prompt = build_prompt(description, success, workspace)
-        exit_code, wall_seconds = stream_opencode(
-            [
-                opencode,
-                "run",
-                "--format",
-                "json",
-                "--model",
-                model_name,
-                "--dir",
-                str(scratch),
-                prompt,
-            ],
-            cwd=scratch,
-            log_path=log_path,
-            heartbeat=heartbeat,
-        )
-        usage = collect_usage_from_jsonl(log_path)
-        text = reply_text(log_path)
-    finally:
-        shutil.rmtree(scratch, ignore_errors=True)
-
-    if exit_code != 0 and not text:
-        raise ValueError(f"составитель завершился с кодом {exit_code}")
-
-    document = extract_json(text)
+    document = extract_json(answer["text"], "составителя")
     prompts = {
         str(name): str(body) for name, body in (document.pop("prompts", {}) or {}).items()
     }
@@ -207,7 +134,7 @@ def draft_experiment(
     return {
         "document": document,
         "prompts": prompts,
-        "model": model_name,
-        "wall_seconds": wall_seconds,
-        "api_cost_usd": usage.get("api_cost_usd"),
+        "model": answer["model"],
+        "wall_seconds": answer["wall_seconds"],
+        "api_cost_usd": answer["api_cost_usd"],
     }

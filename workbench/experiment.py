@@ -39,7 +39,7 @@ class Experiment:
     case: dict[str, str]
     candidates: list[CandidateSpec]
     repetitions: int = 1
-    evaluate: dict[str, str] = field(default_factory=dict)
+    evaluate: dict[str, Any] = field(default_factory=dict)
 
     def candidate(self, candidate_id: str) -> CandidateSpec:
         for item in self.candidates:
@@ -165,11 +165,36 @@ def parse_experiment(
         case=versioned_reference(document.get("case", workspace.name), "case"),
         candidates=candidates,
         repetitions=repetitions,
-        evaluate={
-            str(key): str(value)
-            for key, value in (document.get("evaluate") or {}).items()
-        },
+        evaluate=parse_evaluate(document.get("evaluate"), path),
     )
+
+
+def parse_evaluate(raw: Any, where: str) -> dict[str, Any]:
+    """Read the evaluation registry: a name picks an evaluator, the value tunes it.
+
+    A name nothing answers to is refused here rather than dropped, so an
+    experiment that asks for a measurement it will not get fails before it runs
+    and spends money. The check lives behind a late import because the evaluators
+    reach back into this module.
+    """
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{where}: evaluate must be a mapping")
+
+    from workbench.evaluators import options_for, unknown_names
+
+    evaluate: dict[str, Any] = {}
+    for name, value in raw.items():
+        try:
+            evaluate[str(name)] = options_for(value)
+        except ValueError as error:
+            raise ValueError(f"{where}: evaluate.{name}: {error}") from error
+
+    unknown = unknown_names(evaluate)
+    if unknown:
+        raise ValueError(f"{where}: unknown evaluations: {', '.join(unknown)}")
+    return evaluate
 
 
 def blank_document(
@@ -292,8 +317,14 @@ def dump_experiment(
     if experiment.evaluate:
         lines.append("")
         lines.append("evaluate:")
-        for name, target in experiment.evaluate.items():
-            lines.append(f"  {name}: {target}")
+        for name, options in sorted(experiment.evaluate.items()):
+            # The one-key form is written back as the shorthand it came from.
+            if set(options) == {"document"}:
+                lines.append(f"  {name}: {options['document']}")
+                continue
+            lines.append(f"  {name}:")
+            for key, value in options.items():
+                lines.append(f"    {key}: {value}")
 
     lines.append("")
     lines.append("candidates:")
@@ -383,11 +414,29 @@ def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
     repetitions = one(fields, "repetitions", "1")
     document["repetitions"] = int(repetitions) if repetitions.isdigit() else repetitions
 
-    evaluate = {
-        key[len("evaluate."):]: one(fields, key)
-        for key in fields
-        if key.startswith("evaluate.") and one(fields, key)
-    }
-    if evaluate:
-        document["evaluate"] = evaluate
+    document["evaluate"] = evaluate_from_fields(fields)
+    if not document["evaluate"]:
+        del document["evaluate"]
     return document
+
+
+def evaluate_from_fields(fields: dict[str, list[str]]) -> dict[str, Any]:
+    """Read the registry back from form fields.
+
+    Both shapes the form can post are accepted: ``evaluate.citations`` naming a
+    document, and ``evaluate.claims.model`` tuning an evaluator. An option left
+    blank is dropped, and an evaluation whose options all went blank disappears —
+    that is how the form says "do not measure this".
+    """
+    evaluate: dict[str, Any] = {}
+    for key in fields:
+        if not key.startswith("evaluate."):
+            continue
+        rest = key[len("evaluate.") :]
+        name, _, option = rest.partition(".")
+        value = one(fields, key)
+        if not name or not value:
+            continue
+        options = evaluate.setdefault(name, {})
+        options[option or "document"] = value
+    return {name: options for name, options in evaluate.items() if options}

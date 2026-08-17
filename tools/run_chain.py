@@ -14,48 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from workbench.chain import run_candidate, run_directory
-from workbench.citations import citation_evaluation
-from workbench.envelope import file_artifact, validate_envelope
+from workbench.envelope import validate_envelope
+from workbench.evaluators import attach_all
 from workbench.experiment import Experiment, load_experiment
-
-
-def final_workspace(envelope: dict[str, Any], bundle_root: Path) -> Path | None:
-    """Locate the workspace the last stage left behind, via the envelope itself."""
-    stages = envelope.get("stages") or []
-    if not stages or not stages[-1]["output_artifact_ids"]:
-        return None
-    artifact_id = stages[-1]["output_artifact_ids"][0]
-    for artifact in envelope["artifacts"]:
-        if artifact["id"] == artifact_id and "path" in artifact["location"]:
-            return bundle_root / artifact["location"]["path"]
-    return None
-
-
-def attach_citation_check(
-    envelope: dict[str, Any], bundle_root: Path, document_relative: str
-) -> None:
-    """Record the produced document and the deterministic check over it."""
-    workspace = final_workspace(envelope, bundle_root)
-    if workspace is None:
-        return
-    document = workspace / document_relative
-    if not document.is_file():
-        print(f"  документ не создан: {document_relative}")
-        return
-
-    artifact_id = "final-document"
-    envelope["artifacts"].append(
-        file_artifact(artifact_id, "OUTPUT", document, bundle_root, "text/markdown")
-    )
-    envelope["evaluations"].append(
-        citation_evaluation(
-            evaluation_id="citations",
-            document=document,
-            root=workspace,
-            subject_artifact_id=artifact_id,
-            evidence_artifact_ids=[artifact_id],
-        )
-    )
 
 
 def measurement(envelope: dict[str, Any], name: str) -> Any:
@@ -67,23 +28,26 @@ def measurement(envelope: dict[str, Any], name: str) -> Any:
 
 def summarise(envelopes: list[tuple[str, dict[str, Any]]]) -> None:
     """Print the comparison this project exists to produce."""
-    width = 80
+    width = 96
     print("\n" + "=" * width)
-    print(f"{'способ':<20}{'этапов':>8}{'время, с':>12}{'цена, $':>14}{'ссылки':>16}")
+    print(f"{'способ':<20}{'этапов':>8}{'время, с':>12}{'цена, $':>14}  оценки")
     print("-" * width)
     for candidate_id, envelope in envelopes:
         cost = measurement(envelope, "api_cost")
         wall = measurement(envelope, "wall_time")
         stages = measurement(envelope, "stage_count")
-        verdict = "—"
-        for item in envelope["evaluations"]:
-            if item["id"] == "citations":
-                verdict = item["result"]["verdict"]
+        # Every evaluation, side by side. There is no total across them on
+        # purpose: a verdict from a program and one from a model are not the
+        # same kind of thing and must not be averaged into a score.
+        verdicts = ", ".join(
+            f"{item['id']}: {item['result']['verdict']}"
+            for item in sorted(envelope["evaluations"], key=lambda x: x["id"])
+        )
         print(
             f"{candidate_id:<20}{stages:>8}"
             f"{'—' if wall is None else format(wall, '.1f'):>12}"
             f"{'—' if cost is None else format(cost, '.6f'):>14}"
-            f"{verdict:>16}"
+            f"  {verdicts or '—'}"
         )
     print("=" * width)
     print("Прочерк означает, что величина неизвестна, а не равна нулю.")
@@ -134,9 +98,7 @@ def main() -> None:
                 opencode=arguments.opencode,
                 heartbeat=arguments.heartbeat,
             )
-            document = experiment.evaluate.get("citations")
-            if document:
-                attach_citation_check(envelope, directory, document)
+            attach_all(envelope, directory, experiment.evaluate)
 
             validate_envelope(envelope)
             target = directory / "execution-envelope.json"
