@@ -308,6 +308,17 @@ def folded(value: str, indent: str = "  ") -> list[str]:
     ]
 
 
+def option_value(value: Any) -> str:
+    """Write an option back as YAML, in the flow form the rest of the file uses.
+
+    A list matters here: a suite command is an explicit argument list and must
+    read back as one, the way ``allow_edit`` already does.
+    """
+    if isinstance(value, list):
+        return "[" + ", ".join(str(item) for item in value) + "]"
+    return str(value)
+
+
 def dump_experiment(
     experiment: Experiment, root: Path | None = None, header: str = ""
 ) -> str:
@@ -344,7 +355,7 @@ def dump_experiment(
                 continue
             lines.append(f"  {name}:")
             for key, value in options.items():
-                lines.append(f"    {key}: {value}")
+                lines.append(f"    {key}: {option_value(value)}")
 
     lines.append("")
     lines.append("candidates:")

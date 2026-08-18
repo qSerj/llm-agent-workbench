@@ -8,6 +8,9 @@ indent-width = 4
 exclude = [
     "archive",
     "fixture",
+    # A candidate's workspace is material under test, not project code: the
+    # defect in it is planted, and whatever a model writes there is a result.
+    "experiments/*/workspace",
     ".research-env",
     ".promptfoo-env",
     ".promptfoo-data",

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -18,8 +19,15 @@ sys.path.insert(0, str(ROOT))
 from workbench.chain import StageResult, StageSpec, build_envelope
 from workbench.envelope import validate_envelope, verify_artifacts
 from workbench.evaluators import attach_all
-from workbench.experiment import parse_experiment
+from workbench.experiment import load_experiment, parse_experiment
 from workbench.suite import check_suite_options, run_suite
+
+try:
+    import yaml  # noqa: F401
+
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 PASSING = {"checks": [{"id": "one", "outcome": "PASS", "rationale": "ok"}]}
 MIXED = {
@@ -292,6 +300,89 @@ class AttachSuiteTests(unittest.TestCase):
             self.assertNotIn("run_checks.py", present)
             # The card's own checksum agrees: the stored run did not change.
             verify_artifacts(envelope, root)
+
+
+class ShippedExampleTests(unittest.TestCase):
+    """The example in the repository must be red before anyone pays to fix it."""
+
+    example = ROOT / "experiments" / "wrap-defect"
+
+    def measure(self, workspace: Path) -> dict:
+        return run_suite(
+            workspace=workspace,
+            suite=self.example / "checks",
+            command=[sys.executable, "run_checks.py"],
+            timeout=120,
+        )
+
+    def test_the_planted_defect_is_caught(self) -> None:
+        result = self.measure(self.example / "workspace")
+        self.assertEqual(result["verdict"], "FAIL")
+        failed = {c["id"] for c in result["checks"] if c["outcome"] == "FAIL"}
+        self.assertEqual(
+            failed,
+            {
+                "exact-fit-stays",
+                "paragraph-break-is-kept",
+                "paragraph-count-is-kept",
+                "width-below-one-is-rejected",
+            },
+        )
+        # The report names one symptom; three more violations are latent, which
+        # is the whole point of measuring against the contract and not the report.
+        self.assertEqual(len(result["checks"]), 10)
+
+    def test_a_straightforward_repair_passes_every_check(self) -> None:
+        """The checks must measure the contract, not the author's own solution."""
+        repaired = textwrap.dedent(
+            r'''
+            def wrap_text(text, width):
+                if width < 1:
+                    raise ValueError("width must be at least 1")
+                paragraphs = []
+                for paragraph in text.split("\n\n"):
+                    lines = []
+                    current = ""
+                    for word in paragraph.split():
+                        if not current:
+                            current = word
+                        elif len(current) + 1 + len(word) > width:
+                            lines.append(current)
+                            current = word
+                        else:
+                            current = current + " " + word
+                    if current:
+                        lines.append(current)
+                    paragraphs.append("\n".join(lines))
+                return "\n\n".join(paragraphs)
+            '''
+        )
+        with tempfile.TemporaryDirectory() as raw:
+            workspace = Path(raw) / "workspace"
+            workspace.mkdir()
+            (workspace / "wrap.py").write_text(repaired, encoding="utf-8")
+            result = self.measure(workspace)
+            self.assertEqual(result["verdict"], "PASS", result["checks"])
+
+    def test_a_missing_module_is_undetermined_not_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            workspace = Path(raw) / "workspace"
+            workspace.mkdir()
+            result = self.measure(workspace)
+            self.assertEqual(result["verdict"], "UNDETERMINED")
+            self.assertTrue(
+                all(c["outcome"] == "UNDETERMINED" for c in result["checks"])
+            )
+
+    @unittest.skipUnless(HAS_YAML, "PyYAML is not installed")
+    def test_the_description_loads_and_hides_its_suite(self) -> None:
+        experiment = load_experiment(self.example / "experiment.yaml", root=ROOT)
+        options = experiment.evaluate["suite"]
+        self.assertEqual(options["command"], ["python3", "run_checks.py"])
+        suite = (ROOT / options["path"]).resolve()
+        self.assertFalse(suite.is_relative_to(experiment.workspace))
+        present = {item.name for item in experiment.workspace.rglob("*")}
+        self.assertNotIn("run_checks.py", present)
 
 
 if __name__ == "__main__":

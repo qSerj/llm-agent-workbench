@@ -168,15 +168,16 @@ class DumpExperimentTests(unittest.TestCase):
         text = dump_experiment(load_experiment(path, root=root), root=root, header=header)
         self.assertTrue(text.startswith(comment + "\n\n"))
 
-    def test_repository_description_is_written_back_unchanged(self) -> None:
-        """The real file is the format's reference: writing it must be a no-op."""
-        path = ROOT / "experiments" / "solver-reviewer-fixer" / "experiment.yaml"
-        original = path.read_text(encoding="utf-8")
-        experiment = load_experiment(path, root=ROOT)
-        written = dump_experiment(
-            experiment, root=ROOT, header=leading_comment(original)
-        )
-        self.assertEqual(original, written)
+    def test_repository_descriptions_are_written_back_unchanged(self) -> None:
+        """The real files are the format's reference: writing them must be a no-op."""
+        for path in sorted((ROOT / "experiments").glob("*/experiment.yaml")):
+            with self.subTest(experiment=path.parent.name):
+                original = path.read_text(encoding="utf-8")
+                experiment = load_experiment(path, root=ROOT)
+                written = dump_experiment(
+                    experiment, root=ROOT, header=leading_comment(original)
+                )
+                self.assertEqual(original, written)
 
     def test_a_suite_command_survives_being_written_back(self) -> None:
         """The list form is the only safe one: a command is never a shell string."""

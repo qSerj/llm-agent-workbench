@@ -1,0 +1,45 @@
+# Первый пример со скрытым набором проверок как эталоном
+# (docs/design/hidden-check-suite.md, фаза 2).
+#
+# В рабочем пространстве подложен дефект, отчёт называет только один его
+# симптом. Скрытый набор в experiments/wrap-defect/checks проверяет весь
+# договор README.md и во время работы исполнителю недоступен.
+
+id: wrap-defect-task01
+question: >-
+  Находит ли цепочка «исполнитель — проверяющий — правщик» нарушения договора, о
+  которых отчёт о дефекте не сообщал, и во сколько обходится это по времени и
+  стоимости API по сравнению с одиночным исполнителем?
+
+workspace: experiments/wrap-defect/workspace
+task: task-02-defect-repair
+case: wrap-fixture
+
+evaluate:
+  suite:
+    path: experiments/wrap-defect/checks
+    command: [python3, run_checks.py]
+    timeout: 120
+
+candidates:
+  - id: single
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: experiments/wrap-defect/task.md
+        allow_edit: [wrap.py]
+
+  - id: chain
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: experiments/wrap-defect/task.md
+        allow_edit: [wrap.py]
+      - role: REVIEWER
+        model: deepseek/deepseek-v4-flash
+        prompt: experiments/wrap-defect/reviewer.md
+        allow_edit: [review-findings.json]
+      - role: FIXER
+        model: xiaomi/mimo-v2.5
+        prompt: experiments/wrap-defect/fixer.md
+        allow_edit: [wrap.py]
