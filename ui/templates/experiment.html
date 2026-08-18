@@ -44,18 +44,6 @@
       <input type="text" id="workspace" name="workspace" value="{{ draft.workspace }}">
     </div>
     <div class="field">
-      <label for="evaluate">Проверка ссылок в документе</label>
-      <input type="text" id="evaluate" name="evaluate.citations"
-             value="{{ draft.evaluate.get('citations', '') }}">
-      <p class="hint">
-        Путь к итоговому документу внутри пространства. Программа проверит, что
-        каждая ссылка <code>путь:строка</code> в нём указывает на существующую
-        строку. Это проверка формы: содержимое строки с утверждением не
-        сверяется, поэтому <code>PASS</code> означает дисциплину цитирования, а
-        не правдивость. Пусто — проверки не будет.
-      </p>
-    </div>
-    <div class="field">
       <label for="task">Задача</label>
       <input type="text" id="task" name="task" value="{{ draft.task }}">
       <p class="hint">Имя задачи. <code>имя@2</code> — если версия не первая.</p>
@@ -80,6 +68,57 @@
     репозитория: исполнитель работает по копии и оригинал не меняет. Внешнее
     пространство не переносится вместе с описанием.
   </p>
+</div>
+
+<h2>Оценки</h2>
+<div class="card">
+  <p class="hint">
+    Что мерить у результата. Общего балла нет: программная проверка и суждение
+    модели — разные виды свидетельства и не складываются.
+  </p>
+  <input type="hidden" name="evaluate.form" value="1">
+
+  {% for block in evaluations %}
+  <div class="field evaluation">
+    <label class="switch">
+      <input type="checkbox" name="evaluate.{{ block.name }}.on" value="1"
+             {% if block.enabled %}checked{% endif %}>
+      <strong>{% if block.known %}{{ block.form.title }}{% else %}{{ block.name }}{% endif %}</strong>
+      <code>{{ block.name }}</code>
+      {% if block.known and block.form.spends_money %}
+      <span class="verdict fail">тратит деньги</span>
+      {% endif %}
+    </label>
+    {% if block.known %}
+    <p class="hint">{{ block.form.summary }}</p>
+    {% else %}
+    <p class="hint">
+      Оболочка не знает такой оценки: её настройки сохраняются как есть, но
+      сохранение не пройдёт, пока имя неизвестно исполнителю.
+    </p>
+    {% endif %}
+
+    {% for row in block.rows %}
+    <p class="cell-label">{{ row.option.label }}{% if row.option.required %} (обязательно){% endif %}</p>
+    <input type="text" name="{{ row.field }}"
+           {% if row.option.kind == 'int' %}inputmode="numeric"{% endif %}
+           {% if row.option.kind == 'list' %}placeholder="через запятую: python3, run_checks.py"{% endif %}
+           value="{{ row.value }}">
+    {% if row.option.hint %}<p class="hint">{{ row.option.hint }}</p>{% endif %}
+    {% endfor %}
+
+    {% for row in block.hidden %}
+    <input type="hidden" name="{{ row.field }}" value="{{ row.value }}">
+    <input type="hidden" name="{{ row.kind_field }}" value="{{ row.kind }}">
+    {% endfor %}
+    {% if block.hidden %}
+    <p class="hint">
+      Сохраняется как есть, форме неизвестно:
+      {% for row in block.hidden %}<code>{{ row.name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 
 <h2>Способы решения</h2>

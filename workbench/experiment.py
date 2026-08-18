@@ -481,20 +481,12 @@ def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
 def evaluate_from_fields(fields: dict[str, list[str]]) -> dict[str, Any]:
     """Read the registry back from form fields.
 
-    Both shapes the form can post are accepted: ``evaluate.citations`` naming a
-    document, and ``evaluate.claims.model`` tuning an evaluator. An option left
-    blank is dropped, and an evaluation whose options all went blank disappears —
-    that is how the form says "do not measure this".
+    The reading itself lives in ``workbench.evalform``, next to the description
+    of what each evaluation's settings are: a list stays a list, a number stays
+    a number, and a setting the form does not know about is carried through
+    instead of being dropped. Kept here as a name because this is where the rest
+    of the form is read.
     """
-    evaluate: dict[str, Any] = {}
-    for key in fields:
-        if not key.startswith("evaluate."):
-            continue
-        rest = key[len("evaluate.") :]
-        name, _, option = rest.partition(".")
-        value = one(fields, key)
-        if not name or not value:
-            continue
-        options = evaluate.setdefault(name, {})
-        options[option or "document"] = value
-    return {name: options for name, options in evaluate.items() if options}
+    from workbench.evalform import evaluate_from_fields as read_evaluate
+
+    return read_evaluate(fields)

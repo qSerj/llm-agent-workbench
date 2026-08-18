@@ -26,6 +26,8 @@ sys.path.insert(0, str(ROOT))
 from ui.charts import Row, Segment, legend, stacked_bars
 from ui.store import ROLE_SLOTS, Run, Store
 from workbench.draft import draft_experiment
+from workbench.evalform import EVALUATOR_FORMS, form_rows, hidden_rows
+from workbench.evaluators import options_for
 from workbench.experiment import (
     STAGE_ROLES,
     blank_document,
@@ -166,7 +168,14 @@ def normalised(document: Any, name: str) -> dict[str, Any]:
     draft.setdefault("task", draft["id"])
     draft.setdefault("case", Path(str(draft["workspace"])).name)
     draft.setdefault("repetitions", 1)
-    draft.setdefault("evaluate", {})
+    # The form works with mappings; the shorthand `citations: path.md` is a
+    # writing style that dump_experiment restores on the way out.
+    raw_evaluate = draft.get("evaluate") or {}
+    draft["evaluate"] = (
+        {str(name): options_for(value) for name, value in raw_evaluate.items()}
+        if isinstance(raw_evaluate, dict)
+        else {}
+    )
     candidates = []
     for candidate in draft.get("candidates") or []:
         stages = [dict(stage) for stage in (candidate.get("stages") or [])]
@@ -270,6 +279,41 @@ def external_prompts(draft: dict[str, Any], directory: Path) -> list[str]:
     return found
 
 
+def evaluation_blocks(evaluate: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every evaluation the registry knows, plus any the description carries.
+
+    An unknown name is shown too, as its own settings and a warning, so that a
+    description written by hand is never quietly emptied by a save.
+    """
+    blocks: list[dict[str, Any]] = []
+    for name, form in EVALUATOR_FORMS.items():
+        options = evaluate.get(name) or {}
+        blocks.append(
+            {
+                "name": name,
+                "form": form,
+                "enabled": name in evaluate,
+                "rows": form_rows(name, options),
+                "hidden": hidden_rows(name, options),
+                "known": True,
+            }
+        )
+    for name, options in evaluate.items():
+        if name in EVALUATOR_FORMS:
+            continue
+        blocks.append(
+            {
+                "name": name,
+                "form": None,
+                "enabled": True,
+                "rows": [],
+                "hidden": hidden_rows(name, options or {}),
+                "known": False,
+            }
+        )
+    return blocks
+
+
 def editor_context(
     request: Request,
     name: str,
@@ -298,6 +342,7 @@ def editor_context(
             "columns": max(
                 (len(item["stages"]) for item in draft["candidates"]), default=0
             ),
+            "evaluations": evaluation_blocks(draft.get("evaluate") or {}),
             "error": error,
             "saved": saved,
             "directory": directory,
