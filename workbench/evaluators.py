@@ -22,6 +22,7 @@ from workbench.citations import citation_evaluation
 from workbench.envelope import directory_artifact, file_artifact
 from workbench.inventory import coverage_evaluation
 from workbench.judge import claims_evaluation, judge_document
+from workbench.mentions import mentions_evaluation
 from workbench.suite import (
     SUITE_MEDIA_TYPE,
     check_suite_options,
@@ -131,6 +132,26 @@ def attach_completeness(
         envelope,
         coverage_evaluation(
             evaluation_id="completeness",
+            document=document,
+            workspace=workspace,
+            language=str(options.get("language") or "csharp"),
+            subject_artifact_id=DOCUMENT_ARTIFACT,
+            evidence_artifact_ids=[DOCUMENT_ARTIFACT],
+        ),
+    )
+
+
+def attach_mentions(
+    envelope: dict[str, Any], bundle_root: Path, options: dict[str, Any]
+) -> None:
+    found = ensure_document(envelope, bundle_root, options)
+    if found is None:
+        return
+    workspace, document = found
+    replace_evaluation(
+        envelope,
+        mentions_evaluation(
+            evaluation_id="mentions",
             document=document,
             workspace=workspace,
             language=str(options.get("language") or "csharp"),
@@ -254,6 +275,7 @@ Evaluator = Callable[[dict[str, Any], Path, dict[str, Any]], None]
 EVALUATORS: dict[str, Evaluator] = {
     "citations": attach_citations,
     "completeness": attach_completeness,
+    "mentions": attach_mentions,
     "claims": attach_claims,
     "suite": attach_suite,
 }

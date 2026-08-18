@@ -16,6 +16,7 @@ case: interleaver-fixture
 
 evaluate:
   citations: docs/01-interleavers.md
+  mentions: docs/01-interleavers.md
 
 candidates:
   - id: single
