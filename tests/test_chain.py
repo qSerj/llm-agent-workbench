@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from workbench.chain import (
     collect_usage_from_jsonl,
     permission_config,
     run_directory,
+    stream_opencode,
     total_cost,
 )
 from workbench.envelope import validate_envelope, verify_artifacts
@@ -193,6 +195,44 @@ class StagePermissionTests(unittest.TestCase):
         )
         config, _ = build_opencode_config(spec)
         self.assertEqual(config["permission"]["bash"], {"*": "deny", "python3*": "allow"})
+
+
+class StallTests(unittest.TestCase):
+    """A stage that says nothing must end, not wait forever."""
+
+    def test_a_silent_process_is_killed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            started = time.monotonic()
+            exit_code, _ = stream_opencode(
+                [sys.executable, "-c", "import time; time.sleep(30)"],
+                cwd=root,
+                log_path=root / "opencode.jsonl",
+                heartbeat=0,
+                stall_timeout=1,
+            )
+            self.assertLess(time.monotonic() - started, 20)
+            self.assertNotEqual(exit_code, 0)
+
+    def test_a_talking_process_is_left_alone(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            exit_code, _ = stream_opencode(
+                [
+                    sys.executable,
+                    "-c",
+                    "import time\nfor i in range(4):\n"
+                    "    print(i, flush=True)\n    time.sleep(0.3)",
+                ],
+                cwd=root,
+                log_path=root / "opencode.jsonl",
+                heartbeat=0,
+                stall_timeout=2,
+            )
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                (root / "opencode.jsonl").read_text().split(), ["0", "1", "2", "3"]
+            )
 
 
 class UsageTests(unittest.TestCase):

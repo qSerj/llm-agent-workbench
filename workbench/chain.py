@@ -263,10 +263,25 @@ def collect_usage_from_jsonl(path: Path) -> dict[str, Any]:
     }
 
 
+# Silence is not progress. A stage that has said nothing for this long is hung,
+# not thinking: on 2026-08-18 a wrong --dir made OpenCode sit mute for 109
+# minutes, and nothing in the runner was going to stop it.
+DEFAULT_STALL_TIMEOUT = 900
+
+
 def stream_opencode(
-    args: list[str], cwd: Path, log_path: Path, heartbeat: int = 30
+    args: list[str],
+    cwd: Path,
+    log_path: Path,
+    heartbeat: int = 30,
+    stall_timeout: int = DEFAULT_STALL_TIMEOUT,
 ) -> tuple[int, float]:
-    """Run OpenCode, mirror its event stream to a log, and report wall time."""
+    """Run OpenCode, mirror its event stream to a log, and report wall time.
+
+    ``stall_timeout`` seconds without a single line kills the process. The stage
+    then carries a non-zero exit code, which stops the chain — a silent run is
+    not a finished one.
+    """
     print("$", " ".join(args), flush=True)
     process = subprocess.Popen(
         args,
@@ -309,6 +324,13 @@ def stream_opencode(
                 if item.strip():
                     last_event = time.monotonic()
             now = time.monotonic()
+            if stall_timeout > 0 and now - last_event > stall_timeout:
+                print(
+                    f"OpenCode молчит {int(now - last_event)} с — прекращаю этап",
+                    flush=True,
+                )
+                process.kill()
+                break
             if heartbeat > 0 and now >= next_heartbeat:
                 quiet = int(now - last_event)
                 elapsed = int(now - started)
@@ -331,6 +353,7 @@ def run_stage(
     directory: Path,
     opencode: str = "opencode",
     heartbeat: int = 30,
+    stall_timeout: int = DEFAULT_STALL_TIMEOUT,
 ) -> StageResult:
     """Copy the incoming workspace, run one stage over it, and record its trace."""
     directory.mkdir(parents=True)
@@ -364,12 +387,16 @@ def run_stage(
             "--model",
             model_name,
             "--dir",
-            str(workspace),
+            # Absolute on purpose: OpenCode resolves --dir itself and refuses a
+            # relative path ("Failed to change directory"), which cost a run of
+            # 2026-08-18 nearly two hours of silence before it was noticed.
+            str(workspace.resolve()),
             prompt,
         ],
         cwd=workspace,
         log_path=log_path,
         heartbeat=heartbeat,
+        stall_timeout=stall_timeout,
     )
 
     usage = collect_usage_from_jsonl(log_path)
@@ -610,6 +637,7 @@ def run_candidate(
     repetition: int = 1,
     opencode: str = "opencode",
     heartbeat: int = 30,
+    stall_timeout: int = DEFAULT_STALL_TIMEOUT,
 ) -> dict[str, Any]:
     """Run every stage in order and return the resulting execution envelope."""
     if not specs:
@@ -638,6 +666,7 @@ def run_candidate(
             output_directory / "stages" / f"{position}-{spec.role.lower()}",
             opencode=opencode,
             heartbeat=heartbeat,
+            stall_timeout=stall_timeout,
         )
         results.append(result)
         workspace = result.workspace

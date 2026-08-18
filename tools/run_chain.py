@@ -13,7 +13,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from workbench.chain import run_candidate, run_directory
+from workbench.chain import DEFAULT_STALL_TIMEOUT, run_candidate, run_directory
 from workbench.envelope import validate_envelope
 from workbench.evaluators import attach_all
 from workbench.experiment import Experiment, load_experiment
@@ -66,6 +66,12 @@ def main() -> None:
     )
     parser.add_argument("--opencode", default="opencode")
     parser.add_argument("--heartbeat", type=int, default=30)
+    parser.add_argument(
+        "--stall-timeout",
+        type=int,
+        default=DEFAULT_STALL_TIMEOUT,
+        help="прекратить этап, если opencode молчит столько секунд; 0 — не прекращать",
+    )
     arguments = parser.parse_args()
 
     experiment: Experiment = load_experiment(arguments.experiment, root=ROOT)
@@ -97,6 +103,7 @@ def main() -> None:
                 repetition=repetition,
                 opencode=arguments.opencode,
                 heartbeat=arguments.heartbeat,
+                stall_timeout=arguments.stall_timeout,
             )
             attach_all(envelope, directory, experiment.evaluate)
 
