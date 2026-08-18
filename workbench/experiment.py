@@ -165,24 +165,34 @@ def parse_experiment(
         case=versioned_reference(document.get("case", workspace.name), "case"),
         candidates=candidates,
         repetitions=repetitions,
-        evaluate=parse_evaluate(document.get("evaluate"), path),
+        evaluate=parse_evaluate(
+            document.get("evaluate"), path, root=root, workspace=workspace
+        ),
     )
 
 
-def parse_evaluate(raw: Any, where: str) -> dict[str, Any]:
+def parse_evaluate(
+    raw: Any,
+    where: str,
+    root: Path | None = None,
+    workspace: Path | None = None,
+) -> dict[str, Any]:
     """Read the evaluation registry: a name picks an evaluator, the value tunes it.
 
     A name nothing answers to is refused here rather than dropped, so an
     experiment that asks for a measurement it will not get fails before it runs
-    and spends money. The check lives behind a late import because the evaluators
-    reach back into this module.
+    and spends money. Some evaluators can say more than that about their own
+    settings — a hidden check suite must exist and must lie outside the
+    workspace — and say it through ``VALIDATORS`` at the same early moment. The
+    checks live behind a late import because the evaluators reach back into this
+    module.
     """
     if raw is None:
         return {}
     if not isinstance(raw, dict):
         raise ValueError(f"{where}: evaluate must be a mapping")
 
-    from workbench.evaluators import options_for, unknown_names
+    from workbench.evaluators import VALIDATORS, options_for, unknown_names
 
     evaluate: dict[str, Any] = {}
     for name, value in raw.items():
@@ -194,6 +204,16 @@ def parse_evaluate(raw: Any, where: str) -> dict[str, Any]:
     unknown = unknown_names(evaluate)
     if unknown:
         raise ValueError(f"{where}: unknown evaluations: {', '.join(unknown)}")
+
+    root = (root or Path.cwd()).resolve()
+    for name, options in evaluate.items():
+        validate = VALIDATORS.get(name)
+        if validate is None:
+            continue
+        try:
+            validate(options, root, workspace)
+        except ValueError as error:
+            raise ValueError(f"{where}: evaluate.{name}: {error}") from error
     return evaluate
 
 

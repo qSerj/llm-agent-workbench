@@ -178,6 +178,28 @@ class DumpExperimentTests(unittest.TestCase):
         )
         self.assertEqual(original, written)
 
+    def test_a_suite_command_survives_being_written_back(self) -> None:
+        """The list form is the only safe one: a command is never a shell string."""
+        document = MINIMAL + """
+evaluate:
+  suite:
+    path: checks
+    command: [python3, run_checks.py]
+    timeout: 600
+"""
+        holder = make_root(document)
+        self.addCleanup(holder.cleanup)
+        root = Path(holder.name)
+        (root / "checks").mkdir()
+        path = root / "experiment.yaml"
+        first = load_experiment(path, root=root)
+        path.write_text(dump_experiment(first, root=root), encoding="utf-8")
+        second = load_experiment(path, root=root)
+        self.assertEqual(
+            second.evaluate["suite"]["command"], ["python3", "run_checks.py"]
+        )
+        self.assertEqual(first, second)
+
     def test_workspace_outside_the_root_stays_absolute(self) -> None:
         holder = make_root(MINIMAL)
         self.addCleanup(holder.cleanup)

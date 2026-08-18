@@ -13,24 +13,47 @@ array and why ``tools/evaluate_run.py`` may add to a stored envelope.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from workbench.citations import citation_evaluation
-from workbench.envelope import file_artifact
+from workbench.envelope import directory_artifact, file_artifact
 from workbench.inventory import coverage_evaluation
 from workbench.judge import claims_evaluation, judge_document
+from workbench.suite import (
+    SUITE_MEDIA_TYPE,
+    check_suite_options,
+    run_suite,
+    suite_command,
+    suite_evaluation,
+    suite_path,
+    suite_timeout,
+)
 
 DOCUMENT_ARTIFACT = "final-document"
+SUITE_ARTIFACT = "check-suite"
+SUITE_LOG_ARTIFACT = "check-suite-output"
+
+# The project is not installable: descriptions name their workspace and their
+# check suite relative to the repository root, and tools are run from it.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def final_workspace_artifact(envelope: dict[str, Any]) -> str | None:
+    """The artifact the last stage left behind — the run's result as a whole."""
+    stages = envelope.get("stages") or []
+    if not stages or not stages[-1]["output_artifact_ids"]:
+        return None
+    return stages[-1]["output_artifact_ids"][0]
 
 
 def final_workspace(envelope: dict[str, Any], bundle_root: Path) -> Path | None:
     """Locate the workspace the last stage left behind, via the envelope itself."""
-    stages = envelope.get("stages") or []
-    if not stages or not stages[-1]["output_artifact_ids"]:
+    artifact_id = final_workspace_artifact(envelope)
+    if artifact_id is None:
         return None
-    artifact_id = stages[-1]["output_artifact_ids"][0]
     for artifact in envelope["artifacts"]:
         if artifact["id"] == artifact_id and "path" in artifact["location"]:
             return bundle_root / artifact["location"]["path"]
@@ -160,12 +183,88 @@ def attach_claims(
     )
 
 
+def attach_suite(
+    envelope: dict[str, Any], bundle_root: Path, options: dict[str, Any]
+) -> None:
+    """Measure the finished workspace against checks it never contained."""
+    workspace = final_workspace(envelope, bundle_root)
+    subject = final_workspace_artifact(envelope)
+    if workspace is None or subject is None:
+        return
+    suite = suite_path(options, REPOSITORY_ROOT)
+    if not suite.is_dir():
+        raise ValueError(f"каталог проверок не найден: {suite}")
+
+    command = suite_command(options)
+    result = run_suite(
+        workspace=workspace,
+        suite=suite,
+        command=command,
+        timeout=suite_timeout(options),
+    )
+
+    # The card must say which version of the reference it was measured against,
+    # so the suite travels with the run and is checksummed like everything else.
+    stored = bundle_root / SUITE_ARTIFACT
+    if stored.exists():
+        shutil.rmtree(stored)
+    shutil.copytree(suite, stored, ignore=shutil.ignore_patterns(".git"))
+    log = bundle_root / "check-suite-output.txt"
+    log.write_text(
+        "\n".join(
+            [
+                f"команда: {' '.join(command)}",
+                f"код возврата: {result['exit_code']}",
+                "",
+                "--- stdout ---",
+                result["stdout"],
+                "--- stderr ---",
+                result["stderr"],
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    envelope["artifacts"] = [
+        artifact
+        for artifact in envelope["artifacts"]
+        if artifact["id"] not in {SUITE_ARTIFACT, SUITE_LOG_ARTIFACT}
+    ]
+    envelope["artifacts"].append(
+        directory_artifact(
+            SUITE_ARTIFACT, "EVIDENCE", stored, bundle_root, SUITE_MEDIA_TYPE
+        )
+    )
+    envelope["artifacts"].append(
+        file_artifact(SUITE_LOG_ARTIFACT, "LOG", log, bundle_root, "text/plain")
+    )
+    replace_evaluation(
+        envelope,
+        suite_evaluation(
+            evaluation_id="suite",
+            result=result,
+            subject_artifact_id=subject,
+            evidence_artifact_ids=[SUITE_ARTIFACT, SUITE_LOG_ARTIFACT],
+        ),
+    )
+
+
 Evaluator = Callable[[dict[str, Any], Path, dict[str, Any]], None]
 
 EVALUATORS: dict[str, Evaluator] = {
     "citations": attach_citations,
     "completeness": attach_completeness,
     "claims": attach_claims,
+    "suite": attach_suite,
+}
+
+Validator = Callable[[dict[str, Any], Path, Path | None], None]
+
+# Some evaluations can be refused before a run rather than after: a suite that
+# does not exist, or that the executor would have seen, is a mistake in the
+# description and costs nothing to catch there.
+VALIDATORS: dict[str, Validator] = {
+    "suite": check_suite_options,
 }
 
 
