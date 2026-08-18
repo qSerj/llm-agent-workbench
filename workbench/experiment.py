@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from workbench.chain import StageSpec
+from workbench.chain import StageSpec, bash_permissions
 
 STAGE_ROLES = {"SOLVER", "REVIEWER", "FIXER", "OTHER"}
 
@@ -89,11 +89,24 @@ def parse_stage(raw: Any, position: int, candidate_id: str) -> StageSpec:
     if not isinstance(allow_edit, list) or not allow_edit:
         raise ValueError(f"{where}: allow_edit must be a non-empty list")
 
+    # Absent means the runner's default set; declared replaces it. Which
+    # commands a candidate may run is part of the experiment, not of the runner.
+    allow_bash = raw.get("allow_bash")
+    if allow_bash is not None:
+        if not isinstance(allow_bash, list):
+            raise ValueError(f"{where}: allow_bash must be a list")
+        allow_bash = [str(item) for item in allow_bash]
+        try:
+            bash_permissions(allow_bash)
+        except ValueError as error:
+            raise ValueError(f"{where}: {error}") from error
+
     return StageSpec(
         role=role,
         model=str(raw["model"]),
         prompt=Path(str(raw["prompt"])),
         allow_edit=[str(item) for item in allow_edit],
+        allow_bash=allow_bash,
         provider=str(raw.get("provider", "openrouter")),
         base_url=raw.get("base_url"),
         api_key_env=raw.get("api_key_env"),
@@ -368,6 +381,8 @@ def dump_experiment(
             lines.append(f"        model: {stage.model}")
             lines.append(f"        prompt: {relative_to(stage.prompt, root)}")
             lines.append(f"        allow_edit: [{allow}]")
+            if stage.allow_bash is not None:
+                lines.append(f"        allow_bash: [{', '.join(stage.allow_bash)}]")
             if stage.provider != "openrouter":
                 lines.append(f"        provider: {stage.provider}")
             if stage.base_url:
@@ -422,6 +437,18 @@ def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
                     if item.strip()
                 ],
             }
+            # Absent means the runner's default set, so a blank field is left
+            # out rather than written as an empty list. The shell therefore
+            # cannot express "this stage runs nothing" — that answer stays
+            # available to whoever writes the YAML by hand.
+            commands = [
+                item.strip()
+                for value in fields.get(f"{stem}.allow_bash", [])
+                for item in value.split(",")
+                if item.strip()
+            ]
+            if commands:
+                stage["allow_bash"] = commands
             for optional in ("provider", "base_url", "api_key_env"):
                 value = one(fields, f"{stem}.{optional}")
                 if value:

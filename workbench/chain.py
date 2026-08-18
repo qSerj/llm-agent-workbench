@@ -45,6 +45,8 @@ class StageSpec:
     model: str
     prompt: Path
     allow_edit: list[str]
+    # None means "the default set"; a declared list replaces it outright.
+    allow_bash: list[str] | None = None
     provider: str = "openrouter"
     base_url: str | None = None
     api_key_env: str | None = None
@@ -93,7 +95,34 @@ def opencode_version(executable: str = "opencode") -> str:
     return process.stdout.strip() or "unknown"
 
 
-def permission_config(allow_edit: list[str]) -> dict[str, Any]:
+# What a stage may run when it says nothing. These four were enough while the
+# only material was C#; a stage that needs anything else declares it, because
+# what a candidate is allowed to run is a property of the experiment and not of
+# the runner (the shape of the first real run over Python, 2026-08-18).
+DEFAULT_ALLOW_BASH = ("git status*", "git diff*", "dotnet build*", "dotnet test*")
+
+
+def bash_permissions(allow_bash: list[str] | None) -> dict[str, str]:
+    """Deny every command except the patterns this stage declares.
+
+    A declared list replaces the default rather than extending it: a stage that
+    lists what it runs should be readable as the whole answer. An empty list is
+    a legitimate answer too — this stage runs nothing.
+    """
+    patterns = DEFAULT_ALLOW_BASH if allow_bash is None else allow_bash
+    for pattern in patterns:
+        if not pattern or not pattern.strip():
+            raise ValueError("allow_bash patterns must not be empty")
+        if pattern.strip() == "*":
+            raise ValueError(
+                "allow_bash: '*' allows every command and is not a declaration"
+            )
+    return {"*": "deny", **{pattern: "allow" for pattern in patterns}}
+
+
+def permission_config(
+    allow_edit: list[str], allow_bash: list[str] | None = None
+) -> dict[str, Any]:
     """Deny every edit except the exact relative paths this stage declares."""
     if not allow_edit:
         raise ValueError("a stage must declare at least one editable path")
@@ -108,13 +137,7 @@ def permission_config(allow_edit: list[str]) -> dict[str, Any]:
         "list": "allow",
         "lsp": "allow",
         "edit": {"*": "deny", **{path: "allow" for path in allow_edit}},
-        "bash": {
-            "*": "deny",
-            "git status*": "allow",
-            "git diff*": "allow",
-            "dotnet build*": "allow",
-            "dotnet test*": "allow",
-        },
+        "bash": bash_permissions(allow_bash),
         "webfetch": "deny",
         "websearch": "deny",
     }
@@ -146,7 +169,7 @@ def build_opencode_config(
     """
     config: dict[str, Any] = {
         "$schema": "https://opencode.ai/config.json",
-        "permission": permission or permission_config(spec.allow_edit),
+        "permission": permission or permission_config(spec.allow_edit, spec.allow_bash),
     }
 
     if spec.provider == "openrouter":

@@ -126,6 +126,10 @@
           {% endfor %}
           <input type="text" list="workspace-paths" placeholder="ещё файл"
                  name="candidate.{{ row }}.stage.{{ column }}.allow_edit" value="">
+          <p class="cell-label">запускает команды</p>
+          <input type="text" placeholder="пусто — набор по умолчанию"
+                 name="candidate.{{ row }}.stage.{{ column }}.allow_bash"
+                 value="{{ (stage.allow_bash or []) | join(', ') }}">
           <button type="submit" name="action" class="quiet"
                   value="remove-stage:{{ row }}:{{ column }}">убрать этап</button>
         </td>

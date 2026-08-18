@@ -12,9 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from workbench.chain import (
+    DEFAULT_ALLOW_BASH,
     StageResult,
     StageSpec,
     build_envelope,
+    build_opencode_config,
     collect_usage_from_jsonl,
     permission_config,
     run_directory,
@@ -159,6 +161,38 @@ class StagePermissionTests(unittest.TestCase):
     def test_a_stage_must_declare_something(self) -> None:
         with self.assertRaises(ValueError):
             permission_config([])
+
+    def test_a_stage_that_says_nothing_gets_the_default_commands(self) -> None:
+        config = permission_config(["docs/01.md"])
+        self.assertEqual(config["bash"]["*"], "deny")
+        self.assertEqual(
+            sorted(k for k in config["bash"] if k != "*"), sorted(DEFAULT_ALLOW_BASH)
+        )
+
+    def test_declared_commands_replace_the_default(self) -> None:
+        """What a candidate may run is the experiment's answer, whole."""
+        config = permission_config(["wrap.py"], ["python3*"])
+        self.assertEqual(config["bash"], {"*": "deny", "python3*": "allow"})
+
+    def test_declaring_nothing_runnable_is_a_legitimate_answer(self) -> None:
+        config = permission_config(["wrap.py"], [])
+        self.assertEqual(config["bash"], {"*": "deny"})
+
+    def test_a_blanket_star_is_not_a_declaration(self) -> None:
+        for pattern in ("*", " * ", ""):
+            with self.subTest(pattern=pattern), self.assertRaises(ValueError):
+                permission_config(["wrap.py"], [pattern])
+
+    def test_the_stage_config_carries_the_declared_commands(self) -> None:
+        spec = StageSpec(
+            role="SOLVER",
+            model="test/model",
+            prompt=Path("p"),
+            allow_edit=["wrap.py"],
+            allow_bash=["python3*"],
+        )
+        config, _ = build_opencode_config(spec)
+        self.assertEqual(config["permission"]["bash"], {"*": "deny", "python3*": "allow"})
 
 
 class UsageTests(unittest.TestCase):

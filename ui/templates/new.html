@@ -168,6 +168,10 @@
         <label>Правит файлы, через запятую</label>
         <input type="text" name="candidate.{{ row }}.stage.{{ column }}.allow_edit"
                value="{{ (stage.get('allow_edit') or []) | join(', ') }}">
+        <p class="cell-label">запускает команды</p>
+        <input type="text" name="candidate.{{ row }}.stage.{{ column }}.allow_bash"
+               placeholder="пусто — набор по умолчанию"
+               value="{{ (stage.get('allow_bash') or []) | join(', ') }}">
       </div>
     </div>
     {% endfor %}

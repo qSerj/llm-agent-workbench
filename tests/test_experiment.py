@@ -122,6 +122,44 @@ class LoadExperimentTests(unittest.TestCase):
             self.load(document)
         self.assertIn("unique", str(caught.exception))
 
+    def test_declared_commands_are_read_and_written_back(self) -> None:
+        document = MINIMAL.replace(
+            "allow_edit: [docs/report.md]",
+            "allow_edit: [docs/report.md]\n        allow_bash: [python3*, ls*]",
+        )
+        experiment = self.load(document)
+        stage = experiment.candidates[0].stages[0]
+        self.assertEqual(stage.allow_bash, ["python3*", "ls*"])
+
+        holder = make_root(document)
+        self.addCleanup(holder.cleanup)
+        root = Path(holder.name)
+        path = root / "experiment.yaml"
+        path.write_text(
+            dump_experiment(load_experiment(path, root=root), root=root),
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            load_experiment(path, root=root).candidates[0].stages[0].allow_bash,
+            ["python3*", "ls*"],
+        )
+
+    def test_a_stage_that_says_nothing_keeps_saying_nothing(self) -> None:
+        """Absent is the runner's default and must not become an empty list."""
+        experiment = self.load(MINIMAL)
+        self.assertIsNone(experiment.candidates[0].stages[0].allow_bash)
+        self.assertNotIn("allow_bash", dump_experiment(experiment, root=ROOT))
+
+    def test_a_blanket_star_is_rejected_in_a_description(self) -> None:
+        with self.assertRaises(ValueError) as caught:
+            self.load(
+                MINIMAL.replace(
+                    "allow_edit: [docs/report.md]",
+                    "allow_edit: [docs/report.md]\n        allow_bash: ['*']",
+                )
+            )
+        self.assertIn("allow_bash", str(caught.exception))
+
     def test_empty_allow_edit_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             self.load(MINIMAL.replace("allow_edit: [docs/report.md]", "allow_edit: []"))
@@ -229,6 +267,17 @@ class ExperimentDocumentTests(unittest.TestCase):
         "candidate.0.stage.0.prompt": ["prompts/solve.md"],
         "candidate.0.stage.0.allow_edit": ["docs/report.md, docs/notes.md"],
     }
+
+    def test_a_blank_command_field_means_the_default_set(self) -> None:
+        """A blank input must not read as "this stage runs nothing"."""
+        fields = dict(self.FIELDS, **{"candidate.0.stage.0.allow_bash": [" "]})
+        stage = experiment_document(fields)["candidates"][0]["stages"][0]
+        self.assertNotIn("allow_bash", stage)
+
+    def test_declared_commands_survive_the_form(self) -> None:
+        fields = dict(self.FIELDS, **{"candidate.0.stage.0.allow_bash": ["python3*, ls*"]})
+        stage = experiment_document(fields)["candidates"][0]["stages"][0]
+        self.assertEqual(stage["allow_bash"], ["python3*", "ls*"])
 
     def test_fields_become_a_description(self) -> None:
         document = experiment_document(self.FIELDS)

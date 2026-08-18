@@ -28,6 +28,7 @@ candidates:
         model: xiaomi/mimo-v2.5
         prompt: experiments/wrap-defect/task.md
         allow_edit: [wrap.py]
+        allow_bash: [python3*]
 
   - id: chain
     stages:
@@ -35,11 +36,14 @@ candidates:
         model: xiaomi/mimo-v2.5
         prompt: experiments/wrap-defect/task.md
         allow_edit: [wrap.py]
+        allow_bash: [python3*]
       - role: REVIEWER
         model: deepseek/deepseek-v4-flash
         prompt: experiments/wrap-defect/reviewer.md
         allow_edit: [review-findings.json]
+        allow_bash: [python3*]
       - role: FIXER
         model: xiaomi/mimo-v2.5
         prompt: experiments/wrap-defect/fixer.md
         allow_edit: [wrap.py]
+        allow_bash: [python3*]

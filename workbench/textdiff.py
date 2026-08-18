@@ -54,7 +54,7 @@ def stage_field(stage: Any, name: str) -> str:
     return "" if value is None else str(value)
 
 
-STAGE_FIELDS = ("role", "model", "prompt", "allow_edit")
+STAGE_FIELDS = ("role", "model", "prompt", "allow_edit", "allow_bash")
 
 
 def stage_rows(
