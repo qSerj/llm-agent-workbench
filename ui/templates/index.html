@@ -54,7 +54,7 @@
           <th>Способ</th><th>Начат</th><th>Цепочка</th>
           <th class="num">Этапов</th><th class="num">Время, с</th>
           <th class="num">Цена, $</th><th class="num">Вызовов</th>
-          <th>Ссылки</th><th>Состояние</th>
+          <th>Оценки</th><th>Состояние</th>
         </tr>
       </thead>
       <tbody>
@@ -70,11 +70,16 @@
               {% else %}{{ "%.6f"|format(run.api_cost) }}{% endif %}</td>
           <td class="num">{% if run.tool_calls is none %}<span class="unknown-cell">—</span>
               {% else %}{{ run.tool_calls }}{% endif %}</td>
-          <td>{% if run.citation_verdict %}
-                <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
-                {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>
-                {% elif run.citation_checks %}<span class="checks">{{ run.citation_checks }}</span>{% endif %}
-              {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+          <td class="verdicts">
+          {% for name, verdict in run.verdicts.items() %}
+          <span class="one-verdict">
+            <span class="verdict {{ verdict | lower }}">{{ verdict }}</span>
+            <span class="checks">{{ name }}{% if run.check_count(name) is not none %}
+              · {% if run.check_count(name) == 0 %}нечего проверять{% else %}{{ run.check_count(name) }}{% endif %}
+            {% endif %}</span>
+          </span>
+          {% else %}<span class="unknown-cell">—</span>{% endfor %}
+        </td>
           <td>{{ run.status }}</td>
         </tr>
       {% endfor %}

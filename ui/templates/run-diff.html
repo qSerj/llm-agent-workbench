@@ -29,17 +29,21 @@
 
 <div class="card">
   <table>
-    <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Ссылки</th><th>Документ</th></tr></thead>
+    <thead><tr><th></th><th>Прогон</th><th>Начат</th><th>Оценки</th><th>Документ</th></tr></thead>
     <tbody>
       {% for run, path in [(left, left_path), (right, right_path)] %}
       <tr>
         <td class="chain">{{ "слева" if loop.first else "справа" }}</td>
         <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
         <td class="chain">{{ run.moment }}</td>
-        <td>{% if run.citation_verdict %}
-              <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
-              {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>{% endif %}
-            {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+        <td class="verdicts">
+          {% for name, verdict in run.verdicts.items() %}
+          <span class="one-verdict">
+            <span class="verdict {{ verdict | lower }}">{{ verdict }}</span>
+            <span class="checks">{{ name }}{% if run.check_count(name) == 0 %} · нечего проверять{% elif run.check_count(name) %} · {{ run.check_count(name) }}{% endif %}</span>
+          </span>
+          {% else %}<span class="unknown-cell">—</span>{% endfor %}
+        </td>
         <td class="chain">{{ path or "не создан" }}</td>
       </tr>
       {% endfor %}

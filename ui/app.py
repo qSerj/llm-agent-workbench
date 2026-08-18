@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 
 from ui.charts import Row, Segment, legend, stacked_bars
 from ui.store import ROLE_SLOTS, Run, Store
+from workbench.checkgrid import check_grid, disagreements
 from workbench.draft import draft_experiment
 from workbench.evalform import EVALUATOR_FORMS, form_rows, hidden_rows
 from workbench.evaluators import options_for
@@ -386,7 +387,7 @@ def run_detail(request: Request, execution_id: str) -> Any:
 
 
 @app.get("/compare", response_class=HTMLResponse)
-def compare(request: Request, id: list[str] | None = None) -> Any:
+def compare(request: Request, id: list[str] | None = None, checks: str = "") -> Any:
     # Comparing everything compares runs from different days in one table, and
     # a chain run a day later is a different measurement. Without a choice, show
     # the most recent sitting.
@@ -403,12 +404,19 @@ def compare(request: Request, id: list[str] | None = None) -> Any:
         }
         for (experiment, session), group in sorted(store.sessions().items())
     ]
+    rows = check_grid([run.envelope for run in runs])
+    grid = disagreements(rows) if checks == "diff" else rows
     return templates.TemplateResponse(
         request=request,
         name="compare.html",
         context={
             "runs": runs,
             "charts": comparison_charts(runs),
+            # Check by check: a verdict cannot show whether the reference tells
+            # the ways of working apart, and that is the question worth asking.
+            "grid": grid,
+            "hidden_rows": len(rows) - len(grid),
+            "only_differences": checks == "diff",
             "selected": {run.execution_id for run in runs},
             "all_runs": store.runs(),
             "sessions": sessions,

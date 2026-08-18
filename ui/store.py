@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from workbench.checkgrid import verdicts
 from workbench.storage import is_hidden
 
 ENVELOPE_NAME = "execution-envelope.json"
@@ -114,19 +115,23 @@ class Run:
         return None
 
     @property
-    def citation_verdict(self) -> str | None:
-        evaluation = self.evaluation("citations")
-        return evaluation["result"]["verdict"] if evaluation else None
+    def verdicts(self) -> dict[str, str]:
+        """Every evaluation of this run by name.
 
-    @property
-    def citation_checks(self) -> int | None:
-        """How many claims the check could look at.
-
-        Zero is not the same as no evaluation: it means the document made no
-        claim tied to ``path:line``, so there was nothing to verify. Reading that
-        as a missing measurement would hide a real finding about the candidate.
+        Was one hardcoded property for ``citations``, which made the other
+        evaluations — a hidden check suite among them — invisible everywhere
+        except the single-run page.
         """
-        evaluation = self.evaluation("citations")
+        return verdicts(self.envelope)
+
+    def check_count(self, evaluation_id: str) -> int | None:
+        """How many checks an evaluation could look at.
+
+        Zero is not the same as no evaluation: it means there was nothing to
+        verify, which is a finding about the candidate, not a missing
+        measurement.
+        """
+        evaluation = self.evaluation(evaluation_id)
         return len(evaluation["result"].get("checks", [])) if evaluation else None
 
     @property

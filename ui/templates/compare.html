@@ -49,7 +49,7 @@
         <th>Способ</th><th>Начат</th><th>Цепочка</th>
         <th class="num">Время, с</th><th class="num">Цена, $</th>
         <th class="num">Вызовов</th><th class="num">Ошибочных</th>
-        <th>Ссылки</th>
+        <th>Оценки</th>
       </tr>
     </thead>
     <tbody>
@@ -66,11 +66,14 @@
             {% else %}{{ run.tool_calls }}{% endif %}</td>
         <td class="num">{% if run.failed_tool_calls is none %}<span class="unknown-cell">—</span>
             {% else %}{{ run.failed_tool_calls }}{% endif %}</td>
-        <td>{% if run.citation_verdict %}
-              <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
-              {% if run.citation_checks == 0 %}<span class="checks">нечего проверять</span>
-              {% elif run.citation_checks %}<span class="checks">{{ run.citation_checks }}</span>{% endif %}
-            {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+        <td class="verdicts">
+          {% for name, verdict in run.verdicts.items() %}
+          <span class="one-verdict">
+            <span class="verdict {{ verdict | lower }}">{{ verdict }}</span>
+            <span class="checks">{{ name }}{% if run.check_count(name) == 0 %} · нечего проверять{% elif run.check_count(name) %} · {{ run.check_count(name) }}{% endif %}</span>
+          </span>
+          {% else %}<span class="unknown-cell">—</span>{% endfor %}
+        </td>
       </tr>
     {% endfor %}
     </tbody>
@@ -106,9 +109,14 @@
           <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
           <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.experiment_id }}</td>
-          <td>{% if run.citation_verdict %}
-                <span class="verdict {{ run.citation_verdict | lower }}">{{ run.citation_verdict }}</span>
-              {% else %}<span class="unknown-cell">—</span>{% endif %}</td>
+          <td class="verdicts">
+          {% for name, verdict in run.verdicts.items() %}
+          <span class="one-verdict">
+            <span class="verdict {{ verdict | lower }}">{{ verdict }}</span>
+            <span class="checks">{{ name }}{% if run.check_count(name) == 0 %} · нечего проверять{% elif run.check_count(name) %} · {{ run.check_count(name) }}{% endif %}</span>
+          </span>
+          {% else %}<span class="unknown-cell">—</span>{% endfor %}
+        </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -119,6 +127,59 @@
               data-confirm="Убрать отмеченные прогоны в корзину?">Убрать в корзину</button>
     </p>
   </form>
+</div>
+
+<h2>Проверка за проверкой</h2>
+<div class="card">
+  {% if grid %}
+  <p class="note">
+    {% if only_differences %}
+      Только расхождения.
+      {% if hidden_rows %}Совпавших строк скрыто: {{ hidden_rows }}.{% endif %}
+      <a href="?{% for id in selected %}id={{ id }}&amp;{% endfor %}">показать все</a>
+    {% else %}
+      <a href="?{% for id in selected %}id={{ id }}&amp;{% endfor %}checks=diff">только расхождения</a>
+    {% endif %}
+  </p>
+  <div class="chart-wrap">
+  <table class="matrix checkgrid">
+    <thead>
+      <tr>
+        <th>оценка</th><th>проверка</th>
+        {% for run in runs %}<th>{{ run.label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in grid %}
+      <tr class="{{ 'same' if row.agreed else 'differs' }}">
+        <td class="chain">{{ row.evaluation }}</td>
+        <td>{{ row.check }}</td>
+        {% for cell in row.cells %}
+        <td title="{{ cell.rationale }}">
+          {% if cell.known %}
+          <span class="verdict {{ cell.outcome | lower }}">{{ cell.outcome }}</span>
+          {% else %}<span class="unknown-cell">—</span>{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="note">
+    Прочерк означает, что у этого прогона такой проверки нет, а не что она не
+    пройдена. Строка, где все прогоны согласны, ничего не различает: набор из
+    одних таких строк воспроизводим, но неразборчив. Разные наборы дают разные
+    имена проверок и потому две полупустые строки — это правда, а не ошибка;
+    какой версией эталона мерили, видно по артефакту <code>check-suite</code> на
+    странице прогона.
+  </p>
+  {% else %}
+  <p class="empty">
+    {% if only_differences %}Расхождений нет: все проверки совпали.
+    {% else %}Ни у одного из выбранных прогонов нет проверок.{% endif %}
+  </p>
+  {% endif %}
 </div>
 
 {% else %}
