@@ -34,3 +34,6 @@ Thumbs.db
 
 # Deleted experiments and runs
 .trash/
+
+# Материалы, принесённые извне (чужой текст, расшифровки)
+inbound/
