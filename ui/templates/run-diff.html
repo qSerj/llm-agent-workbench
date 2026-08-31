@@ -10,7 +10,7 @@
     <label for="a">Слева</label>
     <select id="a" name="a">
       {% for run in all_runs %}
-      <option value="{{ run.execution_id }}" {% if run.execution_id == left.execution_id %}selected{% endif %}>
+      <option value="{{ run.key }}" {% if run.key == left.key %}selected{% endif %}>
         {{ run.label }} · {{ run.moment }}
       </option>
       {% endfor %}
@@ -18,7 +18,7 @@
     <label for="b">Справа</label>
     <select id="b" name="b">
       {% for run in all_runs %}
-      <option value="{{ run.execution_id }}" {% if run.execution_id == right.execution_id %}selected{% endif %}>
+      <option value="{{ run.key }}" {% if run.key == right.key %}selected{% endif %}>
         {{ run.label }} · {{ run.moment }}
       </option>
       {% endfor %}
@@ -34,7 +34,7 @@
       {% for run, path in [(left, left_path), (right, right_path)] %}
       <tr>
         <td class="chain">{{ "слева" if loop.first else "справа" }}</td>
-        <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+        <td><a href="/run/{{ run.key }}">{{ run.label }}</a></td>
         <td class="chain">{{ run.moment }}</td>
         <td class="verdicts">
           {% for name, verdict in run.verdicts.items() %}

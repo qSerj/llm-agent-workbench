@@ -191,6 +191,71 @@
   </p>
 </div>
 
+<h2>Парные сравнения</h2>
+<div class="card">
+  <p class="hint">
+    Какие два способа сопоставлять по одинаковым номерам повторов. Отношение
+    всегда считается как числитель / знаменатель; это правило не привязано к
+    языку задачи.
+  </p>
+  {% if draft.comparisons %}
+  <div class="chart-wrap">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>Название</th><th>Числитель</th><th>Метка</th>
+          <th>Знаменатель</th><th>Метка</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for comparison in draft.comparisons %}
+        {% set row = loop.index0 %}
+        <tr>
+          <td><input type="text" name="comparison.{{ row }}.label"
+                     value="{{ comparison.label }}" placeholder="Модель или способ"></td>
+          <td>
+            <select name="comparison.{{ row }}.numerator">
+              {% for candidate in draft.candidates %}
+              <option value="{{ candidate.id }}"
+                      {% if candidate.id == comparison.numerator %}selected{% endif %}>
+                {{ candidate.id }}
+              </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td><input type="text" name="comparison.{{ row }}.numerator_label"
+                     value="{{ comparison.numerator_label }}" placeholder="A"></td>
+          <td>
+            <select name="comparison.{{ row }}.denominator">
+              {% for candidate in draft.candidates %}
+              <option value="{{ candidate.id }}"
+                      {% if candidate.id == comparison.denominator %}selected{% endif %}>
+                {{ candidate.id }}
+              </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td><input type="text" name="comparison.{{ row }}.denominator_label"
+                     value="{{ comparison.denominator_label }}" placeholder="B"></td>
+          <td>
+            <button type="submit" name="action" class="quiet"
+                    value="remove-comparison:{{ row }}">убрать</button>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">Парных сравнений пока нет.</p>
+  {% endif %}
+  <p class="note">
+    <button type="submit" name="action" value="add-comparison" class="quiet">
+      + сравнение
+    </button>
+  </p>
+</div>
+
 <h2>Промпты</h2>
 {% for filename, text in prompts.items() %}
 <div class="card">

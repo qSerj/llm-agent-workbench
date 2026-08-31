@@ -17,6 +17,9 @@ python3 experiments/language-token-cost/analyze.py RUN_DIRECTORY \
   --ru opus-ru --en opus-en
 ```
 
+Сравнение также входит в общую страницу оболочки `/series` вместе с Mimo,
+Terra и Sonnet.
+
 ## Прогон 2026-08-31
 
 Все десять исполнений получили `suite: PASS`, 10 из 10 проверок. Полная серия

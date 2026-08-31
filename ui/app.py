@@ -24,13 +24,26 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from ui.charts import Row, Segment, legend, stacked_bars
-from ui.store import ROLE_SLOTS, Run, Store
+from ui.store import (
+    ROLE_SLOTS,
+    AmbiguousRunReference,
+    Run,
+    Store,
+    encode_reference,
+)
+from workbench.analysis import (
+    ComparisonSummary,
+    OutcomeCounts,
+    record_from_envelope,
+    summarise_comparison,
+)
 from workbench.checkgrid import check_grid, disagreements
 from workbench.draft import draft_experiment
 from workbench.evalform import EVALUATOR_FORMS, form_rows, hidden_rows
 from workbench.evaluators import options_for
 from workbench.experiment import (
     STAGE_ROLES,
+    ComparisonSpec,
     blank_document,
     dump_experiment,
     experiment_document,
@@ -56,6 +69,16 @@ app.mount(
 )
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 store = Store(EXECUTIONS)
+
+
+def find_run(reference: str) -> Run | None:
+    try:
+        return store.run(reference)
+    except AmbiguousRunReference as error:
+        raise HTTPException(
+            status_code=409,
+            detail="идентификатор встречается в нескольких сеансах; откройте прогон из списка",
+        ) from error
 
 
 @dataclass
@@ -85,12 +108,74 @@ class Job:
 JOBS: dict[str, Job] = {}
 
 
+@dataclass(frozen=True)
+class AnalysisConfig:
+    experiment_id: str
+    repetitions: int
+    comparisons: list[ComparisonSpec]
+
+
+@dataclass(frozen=True)
+class SessionChoice:
+    experiment_id: str
+    session: str
+    key: str
+    moment: str
+    runs: list[Run] = field(compare=False)
+
+
+@dataclass(frozen=True)
+class SeriesRow:
+    experiment_id: str
+    session: str
+    moment: str
+    summary: ComparisonSummary
+    runs: list[Run] = field(compare=False)
+
+
 def format_seconds(value: float) -> str:
     return f"{value:.0f}" if value >= 10 else f"{value:.1f}"
 
 
 def format_usd(value: float) -> str:
     return f"{value:.4f}" if value >= 0.01 else f"{value:.5f}"
+
+
+def format_measurement(value: float | None, unit: str) -> str:
+    if value is None:
+        return "—"
+    if unit == "USD":
+        return f"${value:.6f}"
+    if unit == "s":
+        return f"{value:.1f}"
+    return f"{value:,.1f}".replace(",", " ")
+
+
+def format_ratio(value: float | None) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.3f} ({(value - 1) * 100:+.1f}%)"
+
+
+def outcome_text(outcome: OutcomeCounts) -> str:
+    ordered = ("PASS", "FAIL", "UNDETERMINED", "SUCCEEDED", "FAILED")
+    parts = [f"{name} {outcome.count(name)}" for name in ordered if outcome.count(name)]
+    parts.extend(
+        f"{name} {count}"
+        for name, count in sorted(outcome.counts.items())
+        if name not in ordered
+    )
+    if outcome.missing:
+        parts.append(f"нет {outcome.missing}")
+    return ", ".join(parts) or "—"
+
+
+def summary_has_gaps(summary: ComparisonSummary) -> bool:
+    return bool(
+        summary.missing_numerator
+        or summary.missing_denominator
+        or any(metric.pair_count < metric.total_pairs for metric in summary.metrics)
+    )
 
 
 def tick_seconds(value: float) -> str:
@@ -150,6 +235,59 @@ def available_experiments() -> list[str]:
     )
 
 
+def analysis_catalog() -> tuple[dict[str, AnalysisConfig], list[str]]:
+    """Descriptions that declare paired comparisons, indexed by experiment id."""
+    catalog: dict[str, AnalysisConfig] = {}
+    warnings: list[str] = []
+    for path in sorted(EXPERIMENTS.glob(f"*/{DESCRIPTION_NAME}")):
+        try:
+            document = read_yaml(path)
+            if not isinstance(document, dict) or not document.get("comparisons"):
+                continue
+            experiment = parse_experiment(document, root=ROOT, where=str(path))
+        except (OSError, ValueError, RuntimeError) as error:
+            warnings.append(f"{path.parent.name}: {error}")
+            continue
+        if experiment.id in catalog:
+            warnings.append(f"повторяющееся имя эксперимента: {experiment.id}")
+            continue
+        catalog[experiment.id] = AnalysisConfig(
+            experiment_id=experiment.id,
+            repetitions=experiment.repetitions,
+            comparisons=experiment.comparisons,
+        )
+    return catalog, warnings
+
+
+def series_sessions(catalog: dict[str, AnalysisConfig]) -> list[SessionChoice]:
+    choices = []
+    for (experiment_id, session), runs in store.sessions().items():
+        if experiment_id not in catalog:
+            continue
+        reference = f"{experiment_id}\n{session}"
+        choices.append(
+            SessionChoice(
+                experiment_id=experiment_id,
+                session=session,
+                key=encode_reference(reference),
+                moment=min(run.moment for run in runs),
+                runs=runs,
+            )
+        )
+    return sorted(choices, key=lambda item: max(run.started_at for run in item.runs))
+
+
+def default_series_keys(choices: list[SessionChoice]) -> set[str]:
+    newest: dict[str, SessionChoice] = {}
+    for choice in choices:
+        previous = newest.get(choice.experiment_id)
+        if previous is None or max(run.started_at for run in choice.runs) > max(
+            run.started_at for run in previous.runs
+        ):
+            newest[choice.experiment_id] = choice
+    return {choice.key for choice in newest.values()}
+
+
 def description_path(name: str) -> Path:
     """Resolve an experiment name to its description, refusing anything outside."""
     path = (EXPERIMENTS / name / DESCRIPTION_NAME).resolve()
@@ -169,6 +307,7 @@ def normalised(document: Any, name: str) -> dict[str, Any]:
     draft.setdefault("task", draft["id"])
     draft.setdefault("case", Path(str(draft["workspace"])).name)
     draft.setdefault("repetitions", 1)
+    draft.setdefault("comparisons", [])
     # The form works with mappings; the shorthand `citations: path.md` is a
     # writing style that dump_experiment restores on the way out.
     raw_evaluate = draft.get("evaluate") or {}
@@ -182,6 +321,7 @@ def normalised(document: Any, name: str) -> dict[str, Any]:
         stages = [dict(stage) for stage in (candidate.get("stages") or [])]
         candidates.append({"id": candidate.get("id", ""), "stages": stages})
     draft["candidates"] = candidates
+    draft["comparisons"] = [dict(item) for item in (draft.get("comparisons") or [])]
     draft["task"] = reference_text(draft["task"])
     draft["case"] = reference_text(draft["case"])
     return draft
@@ -210,6 +350,25 @@ def apply_structure(draft: dict[str, Any], action: str) -> None:
             stages = candidates[row]["stages"]
             if 0 <= column < len(stages):
                 del stages[column]
+    elif verb == "add-comparison":
+        candidate_ids = [item["id"] for item in candidates]
+        numerator = candidate_ids[0] if candidate_ids else ""
+        denominator = candidate_ids[1] if len(candidate_ids) > 1 else ""
+        draft["comparisons"].append(
+            {
+                "label": "",
+                "numerator": numerator,
+                "denominator": denominator,
+                "numerator_label": numerator,
+                "denominator_label": denominator,
+            }
+        )
+    elif (
+        verb == "remove-comparison"
+        and parts
+        and 0 <= parts[0] < len(draft["comparisons"])
+    ):
+        del draft["comparisons"][parts[0]]
 
 
 MODEL_CACHE: list[str] = []
@@ -373,9 +532,65 @@ def index(request: Request) -> Any:
     )
 
 
-@app.get("/run/{execution_id}", response_class=HTMLResponse)
-def run_detail(request: Request, execution_id: str) -> Any:
-    run = store.run(execution_id)
+@app.get("/series", response_class=HTMLResponse)
+def series(request: Request, session: list[str] | None = None) -> Any:
+    catalog, warnings = analysis_catalog()
+    choices = series_sessions(catalog)
+    known = {choice.key: choice for choice in choices}
+    selected = default_series_keys(choices) if session is None else set(session)
+    unknown = sorted(selected - set(known))
+    if unknown:
+        warnings.append(f"неизвестных сеансов в URL: {len(unknown)}")
+    selected &= set(known)
+
+    rows: list[SeriesRow] = []
+    for choice in choices:
+        if choice.key not in selected:
+            continue
+        config = catalog[choice.experiment_id]
+        records = [record_from_envelope(run.envelope) for run in choice.runs]
+        for comparison in config.comparisons:
+            try:
+                summary = summarise_comparison(records, comparison, config.repetitions)
+            except ValueError as error:
+                warnings.append(
+                    f"{choice.experiment_id} · {choice.session} · {comparison.label}: {error}"
+                )
+                continue
+            relevant = [
+                run
+                for run in choice.runs
+                if run.candidate_id in {comparison.numerator, comparison.denominator}
+            ]
+            rows.append(
+                SeriesRow(
+                    experiment_id=choice.experiment_id,
+                    session=choice.session,
+                    moment=choice.moment,
+                    summary=summary,
+                    runs=relevant,
+                )
+            )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="series.html",
+        context={
+            "choices": list(reversed(choices)),
+            "selected": selected,
+            "rows": rows,
+            "warnings": warnings,
+            "format_measurement": format_measurement,
+            "format_ratio": format_ratio,
+            "outcome_text": outcome_text,
+            "summary_has_gaps": summary_has_gaps,
+        },
+    )
+
+
+@app.get("/run/{reference}", response_class=HTMLResponse)
+def run_detail(request: Request, reference: str) -> Any:
+    run = find_run(reference)
     if run is None:
         raise HTTPException(status_code=404, detail="карточка не найдена")
     charts = comparison_charts([run])
@@ -391,14 +606,20 @@ def compare(request: Request, id: list[str] | None = None, checks: str = "") -> 
     # Comparing everything compares runs from different days in one table, and
     # a chain run a day later is a different measurement. Without a choice, show
     # the most recent sitting.
-    runs = store.select(id or [])
+    try:
+        runs = store.select(id or [])
+    except AmbiguousRunReference as error:
+        raise HTTPException(
+            status_code=409,
+            detail="старый идентификатор неоднозначен; выберите сеанс заново",
+        ) from error
     if not runs:
         runs = store.latest_session()
     sessions = [
         {
             "experiment": experiment,
             "session": session,
-            "ids": [run.execution_id for run in group],
+            "ids": [run.key for run in group],
             "moment": min(run.moment for run in group),
             "count": len(group),
         }
@@ -417,7 +638,7 @@ def compare(request: Request, id: list[str] | None = None, checks: str = "") -> 
             "grid": grid,
             "hidden_rows": len(rows) - len(grid),
             "only_differences": checks == "diff",
-            "selected": {run.execution_id for run in runs},
+            "selected": {run.key for run in runs},
             "all_runs": store.runs(),
             "sessions": sessions,
             "showing_all": bool(id),
@@ -428,7 +649,7 @@ def compare(request: Request, id: list[str] | None = None, checks: str = "") -> 
 @app.get("/run-diff", response_class=HTMLResponse)
 def run_diff(request: Request, a: str = "", b: str = "") -> Any:
     """Diff the documents two runs produced, which is the result itself."""
-    left, right = store.run(a), store.run(b)
+    left, right = find_run(a), find_run(b)
     if left is None or right is None:
         raise HTTPException(status_code=404, detail="прогон не найден")
 
@@ -459,9 +680,9 @@ def run_diff(request: Request, a: str = "", b: str = "") -> Any:
     )
 
 
-@app.get("/artifact/{execution_id}/{relative_path:path}", response_class=PlainTextResponse)
-def artifact(execution_id: str, relative_path: str) -> Any:
-    run = store.run(execution_id)
+@app.get("/artifact/{reference}/{relative_path:path}", response_class=PlainTextResponse)
+def artifact(reference: str, relative_path: str) -> Any:
+    run = find_run(reference)
     if run is None:
         raise HTTPException(status_code=404, detail="карточка не найдена")
     directory = run.directory.resolve()
@@ -644,8 +865,8 @@ def experiment_delete(name: str) -> Any:
 async def runs_delete(request: Request) -> Any:
     """Move the selected runs to the trash, so a costly result is recoverable."""
     fields = parse_qs((await request.body()).decode("utf-8"))
-    for execution_id in fields.get("id") or []:
-        run = store.run(execution_id)
+    for reference in fields.get("id") or []:
+        run = find_run(reference)
         if run is not None:
             move_to_trash(run.directory, EXECUTIONS.resolve())
     return RedirectResponse(url="/compare", status_code=303)

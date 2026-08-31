@@ -223,6 +223,12 @@ button.quiet:hover { color: var(--series-1); }
 .card.save { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .note { color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; }
 .running { color: var(--warning); font-weight: 600; }
+.session-picker { display: grid; gap: 0.45rem; }
+.session-picker label { display: flex; align-items: baseline; gap: 0.4rem; }
+table.ratios { min-width: 1380px; table-layout: auto; }
+.ratio-cell { white-space: nowrap; }
+.ratio-up { color: var(--series-2); }
+.ratio-down { color: var(--series-1); }
 </style>
 </head>
 <body>
@@ -231,6 +237,7 @@ button.quiet:hover { color: var(--series-1); }
     <a class="brand" href="/">Лаборатория</a>
     <a href="/experiments">Эксперименты</a>
     <a href="/compare">Сравнение</a>
+    <a href="/series">Сводка серий</a>
     <a href="/experiment/new">+ Новый эксперимент</a>
   </div>
 </header>

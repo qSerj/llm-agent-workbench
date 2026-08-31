@@ -19,6 +19,13 @@ evaluate:
     command: [python3, run_checks.py]
     timeout: 120
 
+comparisons:
+  - label: Xiaomi Mimo 2.5
+    numerator: ru
+    denominator: en
+    numerator_label: RU
+    denominator_label: EN
+
 candidates:
   - id: ru
     stages:

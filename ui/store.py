@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +17,25 @@ ENVELOPE_NAME = "execution-envelope.json"
 # Fixed slot per stage role. Colour follows the entity, never its rank, so a
 # filtered-out role never repaints the ones that remain.
 ROLE_SLOTS = {"SOLVER": 1, "REVIEWER": 2, "FIXER": 3, "OTHER": 4}
+
+
+class AmbiguousRunReference(ValueError):
+    """A legacy execution id names more than one directory."""
+
+
+def encode_reference(reference: str) -> str:
+    encoded = base64.urlsafe_b64encode(reference.encode("utf-8")).decode("ascii")
+    return "path-" + encoded.rstrip("=")
+
+
+def decode_reference(value: str) -> str | None:
+    if not value.startswith("path-"):
+        return None
+    encoded = value.removeprefix("path-")
+    try:
+        return base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return None
 
 
 @dataclass
@@ -43,6 +64,12 @@ class Run:
     envelope: dict[str, Any]
     stages: list[Stage]
     stamp: str = ""
+    reference: str = ""
+
+    @property
+    def key(self) -> str:
+        """Stable shell locator; unlike execution_id it includes the sitting."""
+        return encode_reference(self.reference)
 
     @property
     def label(self) -> str:
@@ -181,9 +208,8 @@ def load_run(envelope_path: Path, root: Path | None = None) -> Run:
         for item in envelope.get("stages", [])
     ]
     directory = envelope_path.parent
-    experiment_id, stamp = placement(
-        envelope_path, root if root is not None else directory.parent.parent
-    )
+    storage_root = root if root is not None else directory.parent.parent
+    experiment_id, stamp = placement(envelope_path, storage_root)
     return Run(
         execution_id=envelope["execution_id"],
         experiment_id=experiment_id,
@@ -193,6 +219,7 @@ def load_run(envelope_path: Path, root: Path | None = None) -> Run:
         envelope=envelope,
         stages=stages,
         stamp=stamp,
+        reference=directory.relative_to(storage_root).as_posix(),
     )
 
 
@@ -206,12 +233,13 @@ class Store:
         if not self.root.is_dir():
             return []
         found: list[Run] = []
-        for path in sorted(self.root.rglob(ENVELOPE_NAME)):
-            # A run keeps copies of the workspace; an envelope that a candidate
-            # happened to produce inside one is data, not a run of ours. Deleted
-            # runs live under a dot-directory and are equally not ours to list.
-            if {"input-workspace", "stages"} & set(path.parts):
-                continue
+        # The storage contract has exactly two active layouts: legacy runs sit
+        # below an experiment, current ones below experiment/session. Bounded
+        # globs avoid walking every copied workspace merely to discard it later.
+        paths = set(self.root.glob(f"*/*/{ENVELOPE_NAME}"))
+        paths.update(self.root.glob(f"*/*/*/{ENVELOPE_NAME}"))
+        for path in sorted(paths):
+            # Deleted runs live under a dot-directory and are not listed.
             if is_hidden(path, self.root):
                 continue
             try:
@@ -249,12 +277,38 @@ class Store:
         newest = max(grouped.values(), key=lambda runs: max(r.started_at for r in runs))
         return newest
 
-    def run(self, execution_id: str) -> Run | None:
-        for run in self.runs():
-            if run.execution_id == execution_id:
-                return run
-        return None
+    def latest_sessions(self, experiment_ids: set[str]) -> dict[str, list[Run]]:
+        """Newest sitting of every requested experiment."""
+        newest: dict[str, list[Run]] = {}
+        for (experiment_id, _), runs in self.sessions().items():
+            if experiment_id not in experiment_ids:
+                continue
+            previous = newest.get(experiment_id)
+            if previous is None or max(run.started_at for run in runs) > max(
+                run.started_at for run in previous
+            ):
+                newest[experiment_id] = runs
+        return newest
 
-    def select(self, execution_ids: list[str]) -> list[Run]:
-        by_id = {run.execution_id: run for run in self.runs()}
-        return [by_id[item] for item in execution_ids if item in by_id]
+    @staticmethod
+    def resolve(reference: str, runs: list[Run]) -> Run | None:
+        decoded = decode_reference(reference)
+        if decoded is not None:
+            return next((run for run in runs if run.reference == decoded), None)
+
+        matches = [run for run in runs if run.execution_id == reference]
+        if len(matches) > 1:
+            raise AmbiguousRunReference(reference)
+        return matches[0] if matches else None
+
+    def run(self, reference: str) -> Run | None:
+        return self.resolve(reference, self.runs())
+
+    def select(self, references: list[str]) -> list[Run]:
+        runs = self.runs()
+        selected = []
+        for reference in references:
+            run = self.resolve(reference, runs)
+            if run is not None:
+                selected.append(run)
+        return selected

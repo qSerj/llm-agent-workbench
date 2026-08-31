@@ -20,6 +20,9 @@ python3 experiments/language-token-cost/analyze.py RUN_DIRECTORY \
   --ru sonnet-ru --en sonnet-en
 ```
 
+Оба сравнения также входят в общую страницу оболочки `/series` вместе с
+сериями Mimo и Opus.
+
 ## Прогон 2026-08-31
 
 Все 20 исполнений получили `suite: PASS`, 10 из 10 проверок. Terra стоила

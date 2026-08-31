@@ -42,6 +42,21 @@ candidates:
         allow_edit: [docs/report.md]
 """
 
+PAIRED = MINIMAL + """
+  - id: baseline
+    stages:
+      - role: SOLVER
+        model: test/model
+        prompt: prompts/solve.md
+        allow_edit: [docs/report.md]
+comparisons:
+  - label: Новый против базового
+    numerator: single
+    denominator: baseline
+    numerator_label: A
+    denominator_label: B
+"""
+
 
 def make_root(document: str) -> tempfile.TemporaryDirectory:
     holder = tempfile.TemporaryDirectory()
@@ -170,6 +185,33 @@ class LoadExperimentTests(unittest.TestCase):
             experiment.candidate("absent")
         self.assertIn("single", str(caught.exception))
 
+    def test_paired_comparison_names_both_candidates_and_labels(self) -> None:
+        comparison = self.load(PAIRED).comparisons[0]
+        self.assertEqual(comparison.label, "Новый против базового")
+        self.assertEqual(comparison.numerator, "single")
+        self.assertEqual(comparison.denominator, "baseline")
+        self.assertEqual(comparison.numerator_label, "A")
+        self.assertEqual(comparison.denominator_label, "B")
+
+    def test_comparison_must_name_two_known_different_candidates(self) -> None:
+        for document in (
+            PAIRED.replace("denominator: baseline", "denominator: absent"),
+            PAIRED.replace("denominator: baseline", "denominator: single"),
+        ):
+            with self.subTest(document=document), self.assertRaises(ValueError):
+                self.load(document)
+
+    def test_same_directed_comparison_is_not_declared_twice(self) -> None:
+        duplicate = PAIRED.replace(
+            "    denominator_label: B",
+            "    denominator_label: B\n"
+            "  - label: Ещё раз\n"
+            "    numerator: single\n"
+            "    denominator: baseline",
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate comparison"):
+            self.load(duplicate)
+
 
 @unittest.skipUnless(HAS_YAML, "PyYAML is not installed")
 class DumpExperimentTests(unittest.TestCase):
@@ -186,6 +228,11 @@ class DumpExperimentTests(unittest.TestCase):
     def test_written_description_loads_back_the_same(self) -> None:
         first, second, _ = self.round_trip(MINIMAL)
         self.assertEqual(first, second)
+
+    def test_comparisons_survive_the_round_trip(self) -> None:
+        first, second, text = self.round_trip(PAIRED)
+        self.assertEqual(first.comparisons, second.comparisons)
+        self.assertIn("comparisons:", text)
 
     def test_writing_is_stable(self) -> None:
         _, _, text = self.round_trip(MINIMAL)
@@ -294,6 +341,34 @@ class ExperimentDocumentTests(unittest.TestCase):
         self.assertEqual(stage["role"], "SOLVER")
         self.assertEqual(stage["allow_edit"], ["docs/report.md", "docs/notes.md"])
         self.assertNotIn("provider", stage)
+
+    def test_comparison_fields_become_a_description(self) -> None:
+        fields = dict(self.FIELDS)
+        fields.update(
+            {
+                "candidate.1.id": ["baseline"],
+                "candidate.1.stage.0.role": ["SOLVER"],
+                "candidate.1.stage.0.model": ["test/model"],
+                "candidate.1.stage.0.prompt": ["prompts/solve.md"],
+                "candidate.1.stage.0.allow_edit": ["docs/report.md"],
+                "comparison.0.label": ["A/B"],
+                "comparison.0.numerator": ["single"],
+                "comparison.0.denominator": ["baseline"],
+                "comparison.0.numerator_label": ["A"],
+                "comparison.0.denominator_label": ["B"],
+            }
+        )
+        comparison = experiment_document(fields)["comparisons"][0]
+        self.assertEqual(
+            comparison,
+            {
+                "label": "A/B",
+                "numerator": "single",
+                "denominator": "baseline",
+                "numerator_label": "A",
+                "denominator_label": "B",
+            },
+        )
 
     def test_empty_task_and_case_fall_back_to_the_defaults(self) -> None:
         """An empty field must mean "default", not a description that cannot load."""

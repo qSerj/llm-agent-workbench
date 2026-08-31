@@ -55,7 +55,7 @@
     <tbody>
     {% for run in runs %}
       <tr>
-        <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+        <td><a href="/run/{{ run.key }}">{{ run.label }}</a></td>
         <td class="chain">{{ run.moment }}</td>
         <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
         <td class="num">{% if run.wall_time is none %}<span class="unknown-cell">—</span>
@@ -84,7 +84,7 @@
   </p>
   {% if runs | length > 1 %}
   <p class="note">
-    <a href="/run-diff?a={{ runs[0].execution_id }}&amp;b={{ runs[1].execution_id }}">
+    <a href="/run-diff?a={{ runs[0].key }}&amp;b={{ runs[1].key }}">
       Чем отличаются результаты →
     </a>
   </p>
@@ -104,9 +104,9 @@
       <tbody>
       {% for run in all_runs %}
         <tr>
-          <td><input type="checkbox" name="id" value="{{ run.execution_id }}"
-              {% if run.execution_id in selected %}checked{% endif %}></td>
-          <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+          <td><input type="checkbox" name="id" value="{{ run.key }}"
+              {% if run.key in selected %}checked{% endif %}></td>
+          <td><a href="/run/{{ run.key }}">{{ run.label }}</a></td>
           <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.experiment_id }}</td>
           <td class="verdicts">

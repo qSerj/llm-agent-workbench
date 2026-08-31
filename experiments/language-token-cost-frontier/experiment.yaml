@@ -16,6 +16,18 @@ evaluate:
     command: [python3, run_checks.py]
     timeout: 120
 
+comparisons:
+  - label: GPT-5.6 Terra
+    numerator: terra-ru
+    denominator: terra-en
+    numerator_label: RU
+    denominator_label: EN
+  - label: Claude Sonnet 4.6
+    numerator: sonnet-ru
+    denominator: sonnet-en
+    numerator_label: RU
+    denominator_label: EN
+
 candidates:
   - id: terra-ru
     stages:

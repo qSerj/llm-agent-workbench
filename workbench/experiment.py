@@ -30,6 +30,15 @@ class CandidateSpec:
     stages: list[StageSpec]
 
 
+@dataclass(frozen=True)
+class ComparisonSpec:
+    label: str
+    numerator: str
+    denominator: str
+    numerator_label: str
+    denominator_label: str
+
+
 @dataclass
 class Experiment:
     id: str
@@ -40,6 +49,7 @@ class Experiment:
     candidates: list[CandidateSpec]
     repetitions: int = 1
     evaluate: dict[str, Any] = field(default_factory=dict)
+    comparisons: list[ComparisonSpec] = field(default_factory=list)
 
     def candidate(self, candidate_id: str) -> CandidateSpec:
         for item in self.candidates:
@@ -160,6 +170,7 @@ def parse_experiment(
     identifiers = [item.id for item in candidates]
     if len(identifiers) != len(set(identifiers)):
         raise ValueError(f"{path}: candidate ids must be unique")
+    comparisons = parse_comparisons(document.get("comparisons"), identifiers, path)
 
     workspace = (root / str(document["workspace"])).resolve()
     if not workspace.is_dir():
@@ -181,7 +192,56 @@ def parse_experiment(
         evaluate=parse_evaluate(
             document.get("evaluate"), path, root=root, workspace=workspace
         ),
+        comparisons=comparisons,
     )
+
+
+def parse_comparisons(
+    raw: Any, candidate_ids: list[str], where: str = "experiment"
+) -> list[ComparisonSpec]:
+    """Read optional paired comparisons without coupling them to a domain."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(f"{where}: comparisons must be a list")
+
+    known = set(candidate_ids)
+    comparisons: list[ComparisonSpec] = []
+    seen: set[tuple[str, str]] = set()
+    for position, item in enumerate(raw, start=1):
+        prefix = f"{where}: comparison {position}"
+        if not isinstance(item, dict):
+            raise ValueError(f"{prefix} must be a mapping")
+        missing = {"label", "numerator", "denominator"} - set(item)
+        if missing:
+            raise ValueError(f"{prefix}: missing {', '.join(sorted(missing))}")
+
+        label = str(item["label"]).strip()
+        numerator = str(item["numerator"]).strip()
+        denominator = str(item["denominator"]).strip()
+        if not label or not numerator or not denominator:
+            raise ValueError(f"{prefix}: labels and candidate ids must not be empty")
+        if numerator == denominator:
+            raise ValueError(f"{prefix}: numerator and denominator must differ")
+        unknown = [name for name in (numerator, denominator) if name not in known]
+        if unknown:
+            raise ValueError(f"{prefix}: unknown candidates: {', '.join(unknown)}")
+        key = (numerator, denominator)
+        if key in seen:
+            raise ValueError(f"{prefix}: duplicate comparison {numerator}/{denominator}")
+        seen.add(key)
+        comparisons.append(
+            ComparisonSpec(
+                label=label,
+                numerator=numerator,
+                denominator=denominator,
+                numerator_label=str(item.get("numerator_label") or numerator).strip(),
+                denominator_label=str(item.get("denominator_label") or denominator).strip(),
+            )
+        )
+        if not comparisons[-1].numerator_label or not comparisons[-1].denominator_label:
+            raise ValueError(f"{prefix}: display labels must not be empty")
+    return comparisons
 
 
 def parse_evaluate(
@@ -370,6 +430,16 @@ def dump_experiment(
             for key, value in options.items():
                 lines.append(f"    {key}: {option_value(value)}")
 
+    if experiment.comparisons:
+        lines.append("")
+        lines.append("comparisons:")
+        for comparison in experiment.comparisons:
+            lines.append(f"  - label: {comparison.label}")
+            lines.append(f"    numerator: {comparison.numerator}")
+            lines.append(f"    denominator: {comparison.denominator}")
+            lines.append(f"    numerator_label: {comparison.numerator_label}")
+            lines.append(f"    denominator_label: {comparison.denominator_label}")
+
     lines.append("")
     lines.append("candidates:")
     for candidate in experiment.candidates:
@@ -471,6 +541,21 @@ def experiment_document(fields: dict[str, list[str]]) -> dict[str, Any]:
             document[name] = reference_field(text)
     repetitions = one(fields, "repetitions", "1")
     document["repetitions"] = int(repetitions) if repetitions.isdigit() else repetitions
+
+    comparisons: list[dict[str, str]] = []
+    for index in indexed(fields, "comparison."):
+        stem = f"comparison.{index}"
+        comparisons.append(
+            {
+                "label": one(fields, f"{stem}.label"),
+                "numerator": one(fields, f"{stem}.numerator"),
+                "denominator": one(fields, f"{stem}.denominator"),
+                "numerator_label": one(fields, f"{stem}.numerator_label"),
+                "denominator_label": one(fields, f"{stem}.denominator_label"),
+            }
+        )
+    if comparisons:
+        document["comparisons"] = comparisons
 
     document["evaluate"] = evaluate_from_fields(fields)
     if not document["evaluate"]:

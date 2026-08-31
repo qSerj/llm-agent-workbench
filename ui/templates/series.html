@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Сводка серий{% endblock %}
+{% block content %}
+
+<h1>Сводка серий</h1>
+<p class="question">
+  Повторы сопоставляются попарно по номеру. Отношение считается как
+  числитель / знаменатель; прочерк означает неизвестную величину, а не ноль.
+</p>
+
+{% if choices %}
+<div class="card">
+  <form method="get" action="/series">
+    <div class="session-picker">
+    {% for choice in choices %}
+      <label>
+        <input type="checkbox" name="session" value="{{ choice.key }}"
+               {% if choice.key in selected %}checked{% endif %}>
+        <strong>{{ choice.experiment_id }}</strong>
+        <span class="checks">{{ choice.session }} · {{ choice.runs | length }} исполнений</span>
+      </label>
+    {% endfor %}
+    </div>
+    <p class="note"><button type="submit">Показать выбранные серии</button></p>
+  </form>
+</div>
+{% endif %}
+
+{% for warning in warnings %}
+<div class="card notice bad">{{ warning }}</div>
+{% endfor %}
+
+{% if rows %}
+<h2>Отношения средних</h2>
+<div class="card">
+  <div class="chart-wrap">
+  <table class="matrix ratios">
+    <thead>
+      <tr>
+        <th>Сравнение</th>
+        {% for metric in rows[0].summary.metrics %}<th class="num">{{ metric.metric.label }}</th>{% endfor %}
+        <th>Качество</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>
+          <strong>{{ row.summary.comparison.label }}</strong><br>
+          <span class="checks">{{ row.experiment_id }} · {{ row.session }}</span><br>
+          <span class="checks">
+            {{ row.summary.comparison.numerator_label }}/{{ row.summary.comparison.denominator_label }}
+          </span>
+        </td>
+        {% for metric in row.summary.metrics %}
+        {% set ratio = metric.ratio_of_means %}
+        <td class="num ratio-cell {% if ratio is not none and ratio > 1 %}ratio-up{% elif ratio is not none and ratio < 1 %}ratio-down{% endif %}">
+          {{ format_ratio(ratio) }}
+          {% if metric.pair_count < metric.total_pairs %}
+          <br><span class="checks">n={{ metric.pair_count }}/{{ metric.total_pairs }}</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="verdicts">
+          <span class="one-verdict">
+            <span class="checks">исполнение</span>
+            {{ row.summary.comparison.denominator_label }}:
+            {{ row.summary.lifecycle.denominator.count("SUCCEEDED") }}/{{ row.summary.lifecycle.denominator.total }} ·
+            {{ row.summary.comparison.numerator_label }}:
+            {{ row.summary.lifecycle.numerator.count("SUCCEEDED") }}/{{ row.summary.lifecycle.numerator.total }}
+          </span>
+          {% for evaluation in row.summary.evaluations %}
+          <span class="one-verdict">
+            <span class="checks">{{ evaluation.name }}</span>
+            {{ row.summary.comparison.denominator_label }}:
+            {{ evaluation.denominator.count("PASS") }}/{{ evaluation.denominator.total }} ·
+            {{ row.summary.comparison.numerator_label }}:
+            {{ evaluation.numerator.count("PASS") }}/{{ evaluation.numerator.total }}
+          </span>
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="note">
+    Коэффициент 1,30 означает +30% у числителя, 0,95 — −5%. Цвет лишь помогает
+    читать направление; точное число всегда написано в ячейке.
+  </p>
+</div>
+
+{% for row in rows %}
+{% set comparison = row.summary.comparison %}
+<h2>{{ comparison.label }} <span class="checks">{{ row.session }}</span></h2>
+<div class="card">
+  <p class="hint">
+    {{ comparison.numerator_label }} (<code>{{ comparison.numerator }}</code>) /
+    {{ comparison.denominator_label }} (<code>{{ comparison.denominator }}</code>).
+    Отношение средних и медиана отношений отвечают на разные вопросы и показаны отдельно.
+  </p>
+
+  {% if summary_has_gaps(row.summary) %}
+  <div class="notice bad">
+    Серия неполна.
+    {% if row.summary.missing_numerator %}
+      Нет {{ comparison.numerator_label }}: r{{ row.summary.missing_numerator | join(", r") }}.
+    {% endif %}
+    {% if row.summary.missing_denominator %}
+      Нет {{ comparison.denominator_label }}: r{{ row.summary.missing_denominator | join(", r") }}.
+    {% endif %}
+    Для каждой метрики использованы только пары с двумя известными значениями.
+  </div>
+  {% endif %}
+
+  <div class="chart-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Метрика</th>
+        <th class="num">{{ comparison.denominator_label }}, среднее</th>
+        <th class="num">{{ comparison.denominator_label }}, медиана</th>
+        <th class="num">{{ comparison.numerator_label }}, среднее</th>
+        <th class="num">{{ comparison.numerator_label }}, медиана</th>
+        <th class="num">Отношение средних</th>
+        <th class="num">Медиана пар</th>
+        <th class="num">n</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for metric in row.summary.metrics %}
+      <tr>
+        <td><code>{{ metric.metric.name }}</code></td>
+        <td class="num">{{ format_measurement(metric.denominator_mean, metric.metric.unit) }}</td>
+        <td class="num">{{ format_measurement(metric.denominator_median, metric.metric.unit) }}</td>
+        <td class="num">{{ format_measurement(metric.numerator_mean, metric.metric.unit) }}</td>
+        <td class="num">{{ format_measurement(metric.numerator_median, metric.metric.unit) }}</td>
+        <td class="num">{{ format_ratio(metric.ratio_of_means) }}</td>
+        <td class="num">
+          {{ format_ratio(metric.median_pair_ratio) }}
+          {% if metric.ratio_pair_count != metric.pair_count %}
+          <span class="checks">({{ metric.ratio_pair_count }} отношений)</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ metric.pair_count }}/{{ metric.total_pairs }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Качество</h3>
+  <table>
+    <thead>
+      <tr><th>Свидетельство</th><th>{{ comparison.denominator_label }}</th><th>{{ comparison.numerator_label }}</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Состояние исполнения</td>
+        <td>{{ outcome_text(row.summary.lifecycle.denominator) }}</td>
+        <td>{{ outcome_text(row.summary.lifecycle.numerator) }}</td>
+      </tr>
+      {% for evaluation in row.summary.evaluations %}
+      <tr>
+        <td><code>{{ evaluation.name }}</code></td>
+        <td>{{ outcome_text(evaluation.denominator) }}</td>
+        <td>{{ outcome_text(evaluation.numerator) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    <a href="/compare?{% for run in row.runs %}id={{ run.key }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">
+      Открыть исходные исполнения →
+    </a>
+  </p>
+</div>
+{% endfor %}
+
+{% elif choices %}
+<div class="card"><p class="empty">Не выбрано ни одной доступной серии.</p></div>
+{% else %}
+<div class="card">
+  <p class="empty">
+    Нет сеансов, для которых в описании эксперимента объявлены
+    <code>comparisons</code>.
+  </p>
+</div>
+{% endif %}
+{% endblock %}

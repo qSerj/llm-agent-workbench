@@ -60,6 +60,12 @@ evaluate:
     path: experiments/wrap-defect/checks  # рядом с промптами, ВНЕ workspace
     command: [python3, run_checks.py]
     timeout: 120
+comparisons:                            # необязательные парные сравнения
+  - label: Новая цепочка
+    numerator: chain-v2
+    denominator: single
+    numerator_label: chain-v2
+    denominator_label: single
 candidates:
   - id: chain-v2
     stages:
@@ -70,7 +76,9 @@ candidates:
 ```
 
 Верхний уровень: `id`, `question`, `workspace`, `candidates` — обязательны;
-`task`, `case`, `repetitions`, `evaluate` — необязательны. Этап: `role`,
+`task`, `case`, `repetitions`, `evaluate`, `comparisons` — необязательны. Парное
+сравнение явно называет `numerator` и `denominator`: оболочка не угадывает их по
+именам способов. Этап: `role`,
 `model`, `prompt`, `allow_edit`; `allow_bash`, `provider`, `base_url`,
 `api_key_env` — необязательны. Роли: `SOLVER`, `REVIEWER`, `FIXER`, `OTHER`.
 

@@ -5,46 +5,31 @@ from __future__ import annotations
 
 import argparse
 import json
-import statistics
+import sys
 from pathlib import Path
-from typing import Any
 
-METRICS = (
-    "input_tokens",
-    "output_tokens",
-    "reasoning_tokens",
-    "cache_read_tokens",
-    "cache_write_tokens",
-    "total_tokens",
-    "api_cost",
-    "wall_time",
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from workbench.analysis import (  # noqa: E402
+    Record,
+    record_from_envelope,
+    summarise_comparison,
 )
+from workbench.experiment import ComparisonSpec  # noqa: E402
 
 
-def observation(envelope: dict[str, Any], name: str) -> int | float | None:
-    for item in envelope.get("observations", []):
-        if item.get("name") == name and "stage_id" not in item:
-            value = item.get("value")
-            return value if isinstance(value, (int, float)) else None
-    return None
-
-
-def load_cards(run_directory: Path) -> dict[tuple[str, int], dict[str, Any]]:
-    cards = {}
+def load_cards(run_directory: Path) -> list[Record]:
+    cards: list[Record] = []
+    seen: set[tuple[str, int]] = set()
     for path in sorted(run_directory.glob("*/execution-envelope.json")):
         envelope = json.loads(path.read_text(encoding="utf-8"))
         key = (str(envelope["candidate"]["id"]), int(envelope["repetition"]))
-        if key in cards:
+        if key in seen:
             raise ValueError(f"повторяющаяся карточка для {key}: {path}")
-        cards[key] = envelope
+        seen.add(key)
+        cards.append(record_from_envelope(envelope))
     return cards
-
-
-def verdict(envelope: dict[str, Any]) -> str:
-    for evaluation in envelope.get("evaluations", []):
-        if evaluation.get("id") == "suite":
-            return str((evaluation.get("result") or {}).get("verdict") or "—")
-    return "—"
 
 
 def format_number(value: float) -> str:
@@ -54,45 +39,46 @@ def format_number(value: float) -> str:
 
 
 def print_report(
-    cards: dict[tuple[str, int], dict[str, Any]], ru_candidate: str, en_candidate: str
+    cards: list[Record], ru_candidate: str, en_candidate: str
 ) -> None:
-    repetitions = sorted({repetition for _, repetition in cards})
-    pair_count = sum(
-        (ru_candidate, repetition) in cards and (en_candidate, repetition) in cards
-        for repetition in repetitions
+    repetitions = max((card.repetition for card in cards), default=1)
+    summary = summarise_comparison(
+        cards,
+        ComparisonSpec("RU/EN", ru_candidate, en_candidate, "RU", "EN"),
+        repetitions,
+    )
+    pair_count = repetitions - len(
+        set(summary.missing_numerator) | set(summary.missing_denominator)
     )
     print(f"Пар найдено: {pair_count}")
     print(f"{'метрика':<22}{'EN среднее':>14}{'RU среднее':>14}{'RU/EN':>12}{'медиана пар':>16}")
     print("-" * 78)
-    for metric in METRICS:
-        pairs = []
-        for repetition in repetitions:
-            ru = observation(cards.get((ru_candidate, repetition), {}), metric)
-            en = observation(cards.get((en_candidate, repetition), {}), metric)
-            if ru is not None and en not in (None, 0):
-                pairs.append((float(ru), float(en)))
-        if not pairs:
-            print(f"{metric:<22}{'—':>14}{'—':>14}{'—':>12}{'—':>16}")
+    for metric in summary.metrics:
+        if metric.pair_count == 0:
+            print(f"{metric.metric.name:<22}{'—':>14}{'—':>14}{'—':>12}{'—':>16}")
             continue
-        ru_mean = statistics.mean(ru for ru, _ in pairs)
-        en_mean = statistics.mean(en for _, en in pairs)
-        ratio_of_means = ru_mean / en_mean
-        median_pair_ratio = statistics.median(ru / en for ru, en in pairs)
+        ratio = "—" if metric.ratio_of_means is None else f"{metric.ratio_of_means:.3f}"
+        median = (
+            "—" if metric.median_pair_ratio is None else f"{metric.median_pair_ratio:.3f}"
+        )
         print(
-            f"{metric:<22}{format_number(en_mean):>14}{format_number(ru_mean):>14}"
-            f"{ratio_of_means:>12.3f}{median_pair_ratio:>16.3f}"
+            f"{metric.metric.name:<22}"
+            f"{format_number(metric.denominator_mean):>14}"
+            f"{format_number(metric.numerator_mean):>14}"
+            f"{ratio:>12}{median:>16}"
         )
 
     print()
-    for candidate in (en_candidate, ru_candidate):
-        outcomes = [
-            verdict(envelope)
-            for (name, _), envelope in sorted(cards.items())
-            if name == candidate
-        ]
-        passed = sum(item == "PASS" for item in outcomes)
-        outcome_text = ", ".join(outcomes) or "—"
-        print(f"{candidate}: suite PASS {passed}/{len(outcomes)}; исходы: {outcome_text}")
+    suite = next((item for item in summary.evaluations if item.name == "suite"), None)
+    if suite is None:
+        print("suite: —")
+        return
+    for candidate, outcomes in (
+        (en_candidate, suite.denominator),
+        (ru_candidate, suite.numerator),
+    ):
+        passed = outcomes.count("PASS")
+        print(f"{candidate}: suite PASS {passed}/{outcomes.total}")
 
 
 def main() -> None:

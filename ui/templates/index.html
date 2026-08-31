@@ -60,7 +60,7 @@
       <tbody>
       {% for run in runs %}
         <tr>
-          <td><a href="/run/{{ run.execution_id }}">{{ run.label }}</a></td>
+          <td><a href="/run/{{ run.key }}">{{ run.label }}</a></td>
           <td class="chain">{{ run.moment }}</td>
           <td class="chain">{{ run.stages | map(attribute="role") | join(" → ") }}</td>
           <td class="num">{{ run.stage_count }}</td>
@@ -86,9 +86,9 @@
       </tbody>
     </table>
     <p class="note">
-      <a href="/compare?{% for run in runs %}id={{ run.execution_id }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Сравнить способы этого прогона →</a>
+      <a href="/compare?{% for run in runs %}id={{ run.key }}{% if not loop.last %}&amp;{% endif %}{% endfor %}">Сравнить способы этого прогона →</a>
       {% if runs | length > 1 %}
-      · <a href="/run-diff?a={{ runs[0].execution_id }}&amp;b={{ runs[1].execution_id }}">Чем отличаются результаты →</a>
+      · <a href="/run-diff?a={{ runs[0].key }}&amp;b={{ runs[1].key }}">Чем отличаются результаты →</a>
       {% endif %}
     </p>
   </div>

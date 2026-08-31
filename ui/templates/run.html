@@ -107,7 +107,7 @@
         <td class="num">{{ artifact.byte_size }}</td>
         <td>
           {% if artifact.content_kind == "FILE" %}
-            <a href="/artifact/{{ run.execution_id }}/{{ artifact.location.path }}"><code>{{ artifact.location.path }}</code></a>
+            <a href="/artifact/{{ run.key }}/{{ artifact.location.path }}"><code>{{ artifact.location.path }}</code></a>
           {% else %}
             <code>{{ artifact.location.path }}</code>
           {% endif %}
