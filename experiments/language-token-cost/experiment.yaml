@@ -1,0 +1,37 @@
+# Сравнение расхода одной модели при русской и английской постановке одной задачи.
+# Порядок способов меняется на каждом повторе, чтобы время запуска и прогретый кэш
+# не давали систематического преимущества одному языку.
+
+id: language-token-cost-task01
+question: >-
+  Как язык постановки одной и той же задачи по исправлению Python-кода влияет на
+  входные, выходные и общие токены, стоимость, длительность и успешность
+  выполнения одной моделью?
+
+workspace: experiments/language-token-cost/workspace
+task: task-03-collapse-integer-ranges
+case: collapse-ranges-fixture
+repetitions: 5
+
+evaluate:
+  suite:
+    path: experiments/language-token-cost/checks
+    command: [python3, run_checks.py]
+    timeout: 120
+
+candidates:
+  - id: ru
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: experiments/language-token-cost/task.ru.md
+        allow_edit: [ranges.py]
+        allow_bash: [python3*]
+
+  - id: en
+    stages:
+      - role: SOLVER
+        model: xiaomi/mimo-v2.5
+        prompt: experiments/language-token-cost/task.en.md
+        allow_edit: [ranges.py]
+        allow_bash: [python3*]

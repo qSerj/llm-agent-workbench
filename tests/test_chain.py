@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from tools.run_chain import balanced_schedule
 from workbench.chain import (
     DEFAULT_ALLOW_BASH,
     StageResult,
@@ -23,6 +24,7 @@ from workbench.chain import (
     run_directory,
     stream_opencode,
     total_cost,
+    total_tokens,
 )
 from workbench.envelope import validate_envelope, verify_artifacts
 
@@ -123,6 +125,12 @@ class ChainEnvelopeTests(unittest.TestCase):
                 if item["name"] == "api_cost"
             ]
             self.assertEqual(costs, [0.001, 0.002, 0.003])
+            total = next(
+                item
+                for item in envelope["observations"]
+                if item["name"] == "total_tokens" and "stage_id" not in item
+            )
+            self.assertEqual(total["value"], 45)
 
     def test_unknown_stage_cost_makes_the_total_unknown(self) -> None:
         """A partial sum shown as a total would understate the candidate."""
@@ -146,6 +154,17 @@ class ChainEnvelopeTests(unittest.TestCase):
             ]
             self.assertIsNone(total_cost(results))
             self.assertEqual(total_cost(results[:1]), 0.5)
+
+    def test_tokens_are_totalled_only_when_every_stage_reported_them(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            results = [
+                make_stage(root, 1, "SOLVER", 0.5, 1.0),
+                make_stage(root, 2, "REVIEWER", 0.5, 1.0),
+            ]
+            self.assertEqual(total_tokens(results, "input"), 20)
+            del results[1].usage["tokens"]["input"]
+            self.assertIsNone(total_tokens(results, "input"))
 
 
 class StagePermissionTests(unittest.TestCase):
@@ -266,6 +285,29 @@ class UsageTests(unittest.TestCase):
             self.assertEqual(usage["api_cost_usd"], 0.5)
             self.assertEqual(usage["tokens"]["input"], 100)
 
+    def test_cache_tokens_are_kept_separate(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = self.write_log(
+                Path(raw),
+                [
+                    {
+                        "type": "step_finish",
+                        "part": {
+                            "tokens": {
+                                "input": 10,
+                                "output": 2,
+                                "reasoning": 1,
+                                "cache": {"read": 30, "write": 4},
+                                "total": 43,
+                            }
+                        },
+                    }
+                ],
+            )
+            tokens = collect_usage_from_jsonl(path)["tokens"]
+            self.assertEqual(tokens["cache_read"], 30)
+            self.assertEqual(tokens["cache_write"], 4)
+
     def test_silence_about_cost_stays_unknown(self) -> None:
         """A local endpoint reports no price; that is not a price of zero."""
         with tempfile.TemporaryDirectory() as raw:
@@ -276,6 +318,7 @@ class UsageTests(unittest.TestCase):
             usage = collect_usage_from_jsonl(path)
             self.assertIsNone(usage["api_cost_usd"])
             self.assertEqual(usage["cost_reporting_steps"], 0)
+            self.assertIsNone(usage["tokens"]["input"])
 
     def test_malformed_lines_are_skipped(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -305,6 +348,14 @@ class RunDirectoryTests(unittest.TestCase):
             second.mkdir()
             third = run_directory(root, "demo", "2026-08-17")
             self.assertEqual(third, root / "demo" / "2026-08-17-3")
+
+
+class ScheduleTests(unittest.TestCase):
+    def test_candidate_order_reverses_on_every_second_repetition(self) -> None:
+        self.assertEqual(
+            balanced_schedule(["ru", "en"], 3),
+            [("ru", 1), ("en", 1), ("en", 2), ("ru", 2), ("ru", 3), ("en", 3)],
+        )
 
 
 if __name__ == "__main__":

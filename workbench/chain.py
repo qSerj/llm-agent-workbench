@@ -225,7 +225,15 @@ def collect_usage_from_jsonl(path: Path) -> dict[str, Any]:
     failed_tool_calls = 0
     step_finishes = 0
     token_steps = 0
-    totals = {"input": 0, "output": 0, "reasoning": 0, "total": 0}
+    totals = {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "total": 0,
+    }
+    reported_token_kinds: set[str] = set()
     step_costs: list[float] = []
 
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -246,9 +254,13 @@ def collect_usage_from_jsonl(path: Path) -> dict[str, Any]:
             if isinstance(tokens, dict):
                 token_steps += 1
                 for key in totals:
-                    value = tokens.get(key)
+                    if key.startswith("cache_"):
+                        value = (tokens.get("cache") or {}).get(key.removeprefix("cache_"))
+                    else:
+                        value = tokens.get(key)
                     if isinstance(value, (int, float)):
                         totals[key] += value
+                        reported_token_kinds.add(key)
             cost = part.get("cost")
             if isinstance(cost, (int, float)):
                 step_costs.append(float(cost))
@@ -257,7 +269,11 @@ def collect_usage_from_jsonl(path: Path) -> dict[str, Any]:
         "tool_calls": tool_calls,
         "failed_tool_calls": failed_tool_calls,
         "step_finishes": step_finishes,
-        "tokens": dict(totals) if token_steps else None,
+        "tokens": (
+            {key: value if key in reported_token_kinds else None for key, value in totals.items()}
+            if token_steps
+            else None
+        ),
         "api_cost_usd": round(sum(step_costs), 12) if step_costs else None,
         "cost_reporting_steps": len(step_costs),
     }
@@ -343,6 +359,8 @@ def stream_opencode(
 
     exit_code = process.wait()
     thread.join(timeout=1)
+    if process.stdout is not None:
+        process.stdout.close()
     return exit_code, time.monotonic() - started
 
 
@@ -465,7 +483,7 @@ def stage_observations(result: StageResult) -> list[dict[str, Any]]:
             "stage_id": result.stage_id,
         },
     ]
-    for key in ("input", "output", "reasoning", "total"):
+    for key in ("input", "output", "reasoning", "cache_read", "cache_write", "total"):
         observations.append(
             {
                 "name": f"{key}_tokens",
@@ -488,6 +506,17 @@ def total_cost(results: list[StageResult]) -> float | None:
     if any(cost is None for cost in costs):
         return None
     return round(sum(costs), 12)
+
+
+def total_tokens(results: list[StageResult], key: str) -> int | float | None:
+    """Sum one provider-reported token kind without turning unknown into zero."""
+    values = []
+    for result in results:
+        tokens = result.usage.get("tokens")
+        if not isinstance(tokens, dict) or not isinstance(tokens.get(key), (int, float)):
+            return None
+        values.append(tokens[key])
+    return sum(values)
 
 
 def build_envelope(
@@ -574,6 +603,15 @@ def build_envelope(
             "method": "sum of stage costs; null when any stage reported none",
         }
     )
+    for key in ("input", "output", "reasoning", "cache_read", "cache_write", "total"):
+        observations.append(
+            {
+                "name": f"{key}_tokens",
+                "value": total_tokens(results, key),
+                "unit": "tokens",
+                "method": "sum of provider-reported stage token counts",
+            }
+        )
     observations.append(
         {
             "name": "stage_count",

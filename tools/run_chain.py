@@ -26,16 +26,31 @@ def measurement(envelope: dict[str, Any], name: str) -> Any:
     return None
 
 
+def balanced_schedule(items: list[Any], repetitions: int) -> list[tuple[Any, int]]:
+    """Alternate candidate order so time and warm-cache effects do not pick a side."""
+    schedule = []
+    for repetition in range(1, repetitions + 1):
+        ordered = items if repetition % 2 else list(reversed(items))
+        schedule.extend((item, repetition) for item in ordered)
+    return schedule
+
+
 def summarise(envelopes: list[tuple[str, dict[str, Any]]]) -> None:
     """Print the comparison this project exists to produce."""
-    width = 96
+    width = 126
     print("\n" + "=" * width)
-    print(f"{'способ':<20}{'этапов':>8}{'время, с':>12}{'цена, $':>14}  оценки")
+    print(
+        f"{'способ':<20}{'этапов':>8}{'время, с':>12}{'вход':>12}"
+        f"{'выход':>12}{'всего':>12}{'цена, $':>14}  оценки"
+    )
     print("-" * width)
     for candidate_id, envelope in envelopes:
         cost = measurement(envelope, "api_cost")
         wall = measurement(envelope, "wall_time")
         stages = measurement(envelope, "stage_count")
+        input_tokens = measurement(envelope, "input_tokens")
+        output_tokens = measurement(envelope, "output_tokens")
+        total_tokens = measurement(envelope, "total_tokens")
         # Every evaluation, side by side. There is no total across them on
         # purpose: a verdict from a program and one from a model are not the
         # same kind of thing and must not be averaged into a score.
@@ -46,6 +61,9 @@ def summarise(envelopes: list[tuple[str, dict[str, Any]]]) -> None:
         print(
             f"{candidate_id:<20}{stages:>8}"
             f"{'—' if wall is None else format(wall, '.1f'):>12}"
+            f"{'—' if input_tokens is None else input_tokens:>12}"
+            f"{'—' if output_tokens is None else output_tokens:>12}"
+            f"{'—' if total_tokens is None else total_tokens:>12}"
             f"{'—' if cost is None else format(cost, '.6f'):>14}"
             f"  {verdicts or '—'}"
         )
@@ -89,32 +107,31 @@ def main() -> None:
     print(f"Каталог прогона: {run_root}")
 
     produced: list[tuple[str, dict[str, Any]]] = []
-    for candidate in selected:
-        for repetition in range(1, experiment.repetitions + 1):
-            directory = run_root / f"{candidate.id}-r{repetition}"
-            envelope = run_candidate(
-                experiment_id=experiment.id,
-                candidate_id=candidate.id,
-                task=experiment.task,
-                case=experiment.case,
-                specs=candidate.stages,
-                source_workspace=experiment.workspace,
-                output_directory=directory,
-                repetition=repetition,
-                opencode=arguments.opencode,
-                heartbeat=arguments.heartbeat,
-                stall_timeout=arguments.stall_timeout,
-            )
-            attach_all(envelope, directory, experiment.evaluate)
+    for candidate, repetition in balanced_schedule(selected, experiment.repetitions):
+        directory = run_root / f"{candidate.id}-r{repetition}"
+        envelope = run_candidate(
+            experiment_id=experiment.id,
+            candidate_id=candidate.id,
+            task=experiment.task,
+            case=experiment.case,
+            specs=candidate.stages,
+            source_workspace=experiment.workspace,
+            output_directory=directory,
+            repetition=repetition,
+            opencode=arguments.opencode,
+            heartbeat=arguments.heartbeat,
+            stall_timeout=arguments.stall_timeout,
+        )
+        attach_all(envelope, directory, experiment.evaluate)
 
-            validate_envelope(envelope)
-            target = directory / "execution-envelope.json"
-            target.write_text(
-                json.dumps(envelope, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
-            )
-            print(f"  карточка: {target}")
-            produced.append((f"{candidate.id}-r{repetition}", envelope))
+        validate_envelope(envelope)
+        target = directory / "execution-envelope.json"
+        target.write_text(
+            json.dumps(envelope, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(f"  карточка: {target}")
+        produced.append((f"{candidate.id}-r{repetition}", envelope))
 
     if produced:
         summarise(produced)
