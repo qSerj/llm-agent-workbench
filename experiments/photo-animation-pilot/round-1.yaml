@@ -1,0 +1,39 @@
+# Первый дешёвый отсев: две модели на самом сложном кадре с руками и предметом.
+id: photo-animation-pilot
+budget_usd: 0.22
+jobs:
+  - id: kitchen-seedance-15
+    case: kitchen
+    model: bytedance/seedance-1-5-pro
+    first_frame: inbound/4.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 4101
+    prompt: >-
+      Preserve the exact identity, age, facial features, hairstyle, blue dress,
+      kitchen, cookware, hands, spoon, and enamel pot from the source family
+      photograph. The little girl gently stirs the pot with the spoon in a
+      small natural circular motion, looks toward the camera, and gives a warm
+      subtle smile. Very restrained realistic movement, locked camera, archival
+      photographic character. Keep both hands anatomically correct and keep
+      the spoon inside the pot. No scene change, no walking, no added objects,
+      no talking, no exaggerated expression, no face distortion.
+
+  - id: kitchen-seedance-mini
+    case: kitchen
+    model: bytedance/seedance-2.0-mini
+    first_frame: inbound/4.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 4101
+    prompt: >-
+      Preserve the exact identity, age, facial features, hairstyle, blue dress,
+      kitchen, cookware, hands, spoon, and enamel pot from the source family
+      photograph. The little girl gently stirs the pot with the spoon in a
+      small natural circular motion, looks toward the camera, and gives a warm
+      subtle smile. Very restrained realistic movement, locked camera, archival
+      photographic character. Keep both hands anatomically correct and keep
+      the spoon inside the pot. No scene change, no walking, no added objects,
+      no talking, no exaggerated expression, no face distortion.

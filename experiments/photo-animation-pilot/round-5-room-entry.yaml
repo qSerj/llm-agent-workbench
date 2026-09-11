@@ -1,0 +1,47 @@
+# Вторая половина перехода 4→5 и отдельное спокойное оживление второго фото.
+id: photo-animation-room-entry-pilot
+budget_usd: 0.12
+jobs:
+  - id: camera-through-doorway-to-room
+    case: kitchen-to-room-entry
+    model: bytedance/seedance-1-5-pro
+    first_frame: experiments/photo-animation-pilot/frames/room-doorway-entry.png
+    last_frame: inbound/5.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 5201
+    prompt: >-
+      Create a single continuous camera movement entirely inside the same
+      archival apartment shown by the supplied endpoint frames. Begin close to
+      the open doorway and flowers, as if the camera has just followed someone
+      through the door. Move gently forward through the doorway, then arc and
+      pan to screen right while smoothly pulling back to reveal the room. The
+      camera settles exactly on the supplied final composition: the girl
+      standing still and safely on the wooden chair, holding her teddy bear and
+      looking toward camera. She is not present at the start and is revealed by
+      the camera movement; do not make her enter, walk, rotate, spin, or morph.
+      Preserve her exact identity, age, face, bow, floral dress, teddy, chair,
+      furniture, and photographic character at the reveal. Natural parallax
+      and mild motion blur only during the camera move. No wipe, no dissolve,
+      no scene change, no added people, no distorted face, hands, feet or chair.
+
+  - id: room-restrained-four-seconds
+    case: room-hold
+    model: bytedance/seedance-1-5-pro
+    first_frame: inbound/5.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 5202
+    prompt: >-
+      Preserve the exact identity, young age, facial features, hairstyle, white
+      bow, floral dress, teddy bear, wooden chair, feet, furniture, room, and
+      archival family-photo look. Hold the original composition for the entire
+      four-second shot with a locked camera. The girl remains safely standing
+      in exactly the same pose and place on the chair. She breathes naturally,
+      blinks once, gives a very subtle warm smile, gently hugs the teddy bear a
+      little closer, and makes only a tiny shift of her head. The dress and bow
+      barely move. No walking, no stepping, no body turn, no rotation, no spin,
+      no camera orbit, no zoom, no talking, no new objects or people, no face,
+      hand, foot, teddy or chair distortion.

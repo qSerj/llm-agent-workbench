@@ -1,0 +1,41 @@
+# Проверка дешёвой удачной модели на двух других типах сцены.
+id: photo-animation-pilot
+budget_usd: 0.12
+jobs:
+  - id: room-seedance-15
+    case: room
+    model: bytedance/seedance-1-5-pro
+    first_frame: inbound/5.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 5101
+    prompt: >-
+      Preserve the exact identity, age, facial features, hairstyle, white bow,
+      floral dress, teddy bear, wooden chair, feet, furniture, and room from the
+      source family photograph. The little girl gently hugs the teddy bear,
+      makes a very small natural sway, smiles warmly, and slowly turns her head
+      and shoulders a little toward the open doorway. Her dress and bow move
+      subtly. She remains safely standing in exactly the same place on the
+      chair; both feet and the chair stay fixed. Restrained realistic movement,
+      locked camera, archival photographic character. No stepping, no full
+      spin, no talking, no added objects, no face or hand distortion.
+
+  - id: park-seedance-15
+    case: park
+    model: bytedance/seedance-1-5-pro
+    first_frame: inbound/6.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 6101
+    prompt: >-
+      Preserve the exact identity, age, facial features, hairstyle, beige coat,
+      school clothes, shoes, maple leaves, trees, and autumn park from the
+      source family photograph. The girl gives a warm subtle smile, gently
+      adjusts the maple leaves in her hands, and makes a small natural shift of
+      weight. A few autumn leaves drift softly through the foreground while
+      the background foliage moves in a light breeze. Very subtle slow camera
+      push-in, realistic restrained motion, archival photographic character.
+      Keep hands and leaves stable and anatomically correct. No walking, no
+      talking, no scene change, no added people, no face distortion.

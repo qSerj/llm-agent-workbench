@@ -1,0 +1,25 @@
+# Мостик между выбранным поздним кадром комнаты и следующим возрастом в парке.
+id: photo-animation-transition-pilot
+budget_usd: 0.07
+jobs:
+  - id: room-to-park-leaves
+    case: room-to-park
+    model: bytedance/seedance-1-5-pro
+    first_frame: experiments/photo-animation-pilot/frames/room-tail.png
+    last_frame: inbound/6.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 5601
+    prompt: >-
+      Create one continuous elegant transition while preserving the identity and
+      age shown in each endpoint image. The girl finishes a gentle turn while
+      holding her teddy bear. Her floral dress and white hair bow move naturally
+      as the camera follows the turn. The room background develops a soft
+      circular motion blur. A dense sweep of realistic golden autumn leaves
+      passes very close across the lens and fully occludes the girl and the room.
+      Hide the entire change of age, clothes, prop, and location behind the
+      leaves. As the leaves clear, resolve exactly into the final supplied frame:
+      the older girl facing the camera in the autumn park holding maple leaves.
+      No visible facial morph, no dissolve between faces, no extra people, no
+      malformed hands, no text, no abrupt black frame.

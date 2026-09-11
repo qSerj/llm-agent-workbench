@@ -1,0 +1,26 @@
+# Первая половина мотивированного перехода 4→5: действие завершается уходом из кухни.
+id: photo-animation-kitchen-exit-pilot
+budget_usd: 0.08
+jobs:
+  - id: kitchen-leave-spoon-and-exit
+    case: kitchen-exit
+    model: bytedance/seedance-1-5-pro
+    first_frame: inbound/4.png
+    duration: 4
+    size: 480x640
+    generate_audio: false
+    seed: 4201
+    prompt: >-
+      Preserve the exact identity, young age, face, hairstyle, blue dress,
+      kitchen, table, enamel pot, spoon, hands, and archival family-photo look.
+      Direct one continuous realistic shot with clear timing. For roughly the
+      first two seconds the little girl remains beside the table, gently stirs
+      the pot once, smiles subtly, then deliberately leaves the spoon resting
+      inside the pot and releases it. During the final two seconds she turns
+      her whole body naturally toward screen right and starts walking toward
+      the right edge of the frame and the room exit. The camera begins a gentle
+      pan and follow to the right behind her, ending on her back or shoulder as
+      she nears or crosses the right edge. Restrained motion and realistic
+      anatomy. The spoon must remain in the pot after she releases it. No scene
+      change, no dissolve, no wipe, no teleportation, no age change, no spin,
+      no talking, no new people, no malformed hands, no face distortion.
